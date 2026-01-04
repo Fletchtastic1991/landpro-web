@@ -685,38 +685,58 @@ export default function MapDrawing({
       
       {/* Info Panel */}
       <div className="absolute top-4 right-16 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border" style={{ right: showAnalysis ? 'calc(40% + 4rem)' : '4rem' }}>
-        <div className="text-sm font-medium text-muted-foreground mb-1">
+        <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1">
           Property Area
+          {parcelSource === 'osm' && (
+            <span className="text-[10px] text-green-600 font-normal">(verified)</span>
+          )}
+          {parcelSource === 'estimated' && (
+            <span className="text-[10px] text-amber-600 font-normal">(estimate)</span>
+          )}
         </div>
-        <div className="text-2xl font-bold text-primary">
+        <div className={`text-2xl font-bold ${parcelSource === 'estimated' ? 'text-amber-600' : 'text-primary'}`}>
           {isFetchingParcel ? (
-            <span className="flex items-center gap-2 text-base">
+            <span className="flex items-center gap-2 text-base text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               Finding boundary...
             </span>
           ) : acreage !== null ? (
-            `${acreage} acres`
+            <>
+              {parcelSource === 'estimated' && <span className="text-base font-normal">~</span>}
+              {acreage} acres
+            </>
           ) : (
             "—"
           )}
         </div>
         {acreage !== null && !isFetchingParcel && (
           <div className="text-xs text-muted-foreground mt-1">
-            {(acreage * 4046.86).toLocaleString()} m²
+            {parcelSource === 'estimated' && '~'}
+            {(acreage * 4046.86).toLocaleString(undefined, { maximumFractionDigits: 0 })} m²
           </div>
         )}
         {parcelSource && !isFetchingParcel && (
           <div className="mt-2 pt-2 border-t">
             <Badge 
               variant={parcelSource === 'osm' ? 'default' : parcelSource === 'estimated' ? 'secondary' : 'outline'}
-              className="text-[10px]"
+              className={`text-[10px] ${parcelSource === 'osm' ? 'bg-green-600' : ''}`}
             >
               {parcelSource === 'osm' && <MapPin className="h-3 w-3 mr-1" />}
-              {parcelSource === 'osm' ? 'Verified boundary' : parcelSource === 'estimated' ? 'Estimated' : 'Manual'}
+              {parcelSource === 'osm' ? 'Verified boundary' : parcelSource === 'estimated' ? 'Estimated boundary' : 'Manual drawing'}
             </Badge>
-            {parcelSource !== 'osm' && (
+            {parcelSource === 'osm' && (
+              <p className="text-[10px] text-green-600 mt-1 font-medium">
+                ✓ Calculated from actual property data
+              </p>
+            )}
+            {parcelSource === 'estimated' && (
+              <p className="text-[10px] text-amber-600 mt-1">
+                Drag corners to match your property
+              </p>
+            )}
+            {parcelSource === 'manual' && (
               <p className="text-[10px] text-muted-foreground mt-1">
-                Drag corners to adjust
+                Calculated from your drawing
               </p>
             )}
           </div>
