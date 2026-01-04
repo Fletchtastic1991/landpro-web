@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Loader2, Save, Trash2, Maximize2, Brain, Leaf, Mountain, Wrench, DollarSign, AlertTriangle, Users, ArrowRight } from "lucide-react";
+import { Loader2, Save, Trash2, Maximize2, Brain, Leaf, Mountain, Wrench, DollarSign, AlertTriangle, Users, ArrowRight, MapPin } from "lucide-react";
 
 const MAP_STYLES = {
   satellite: { id: "mapbox://styles/mapbox/satellite-streets-v12", label: "Satellite" },
@@ -80,15 +80,18 @@ export default function MapDrawing({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const draw = useRef<MapboxDraw | null>(null);
+  const geocoderRef = useRef<MapboxGeocoder | null>(null);
   const [acreage, setAcreage] = useState<number | null>(initialAcreage ?? null);
   const [isSaving, setIsSaving] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isFetchingParcel, setIsFetchingParcel] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [currentPolygon, setCurrentPolygon] = useState<GeoJSON.Polygon | null>(null);
   const [analysis, setAnalysis] = useState<LandAnalysis | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("satellite");
-  
+  const [parcelSource, setParcelSource] = useState<'osm' | 'estimated' | 'manual' | null>(null);
+  const [parcelMessage, setParcelMessage] = useState<string | null>(null);
 
   const handleStyleChange = useCallback((style: MapStyleKey) => {
     if (!map.current || !style) return;
@@ -103,7 +106,7 @@ export default function MapDrawing({
     return Math.round(acres * 100) / 100;
   }, []);
 
-  const updateArea = useCallback(() => {
+  const updateArea = useCallback((fromParcel = false) => {
     if (!draw.current) return;
     
     const data = draw.current.getAll();
@@ -115,9 +118,77 @@ export default function MapDrawing({
       setHasChanges(true);
       setAnalysis(null);
       setShowAnalysis(false);
+      if (!fromParcel) {
+        setParcelSource('manual');
+        setParcelMessage(null);
+      }
     } else {
       setAcreage(null);
       setCurrentPolygon(null);
+      setParcelSource(null);
+      setParcelMessage(null);
+    }
+  }, [calculateArea]);
+
+  // Fetch parcel boundary from coordinates
+  const fetchParcelBoundary = useCallback(async (lng: number, lat: number) => {
+    setIsFetchingParcel(true);
+    setParcelMessage(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('fetch-parcel', {
+        body: { lng, lat }
+      });
+
+      if (error) {
+        console.error('Parcel fetch error:', error);
+        toast.error("Couldn't find property boundary. Draw it manually.");
+        setParcelSource(null);
+        return;
+      }
+
+      if (data?.parcel && draw.current) {
+        // Clear any existing drawings
+        draw.current.deleteAll();
+        
+        // Add the fetched parcel to the draw control
+        draw.current.add({
+          type: 'Feature',
+          properties: {},
+          geometry: data.parcel,
+        });
+
+        // Update area and set source
+        const acres = calculateArea(data.parcel);
+        setAcreage(acres);
+        setCurrentPolygon(data.parcel);
+        setHasChanges(true);
+        setParcelSource(data.source);
+        setParcelMessage(data.message);
+        setAnalysis(null);
+        setShowAnalysis(false);
+
+        // Fit bounds to the parcel
+        const bounds = turf.bbox(data.parcel);
+        map.current?.fitBounds(
+          [
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]],
+          ],
+          { padding: 80, maxZoom: 18 }
+        );
+
+        if (data.source === 'osm') {
+          toast.success("Property boundary found!");
+        } else {
+          toast.info("Estimated boundary shown. Adjust the corners if needed.");
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching parcel:', err);
+      toast.error("Couldn't find property boundary. Draw it manually.");
+    } finally {
+      setIsFetchingParcel(false);
     }
   }, [calculateArea]);
 
@@ -147,14 +218,26 @@ export default function MapDrawing({
 
     const geocoder = new MapboxGeocoder({
       accessToken: MAPBOX_TOKEN,
-      marker: true,
+      marker: false, // We'll handle the marker ourselves
       placeholder: "Search for an address or location...",
       flyTo: {
         speed: 1.5,
-        zoom: 16,
+        zoom: 17,
       },
     });
+    geocoderRef.current = geocoder;
     map.current.addControl(geocoder, "top-left");
+
+    // Listen for geocoder results to auto-fetch parcel
+    geocoder.on('result', (e: { result: { center: [number, number]; place_name?: string } }) => {
+      const [lng, lat] = e.result.center;
+      console.log('Geocoder result:', e.result.place_name, lng, lat);
+      
+      // Auto-fetch parcel boundary when address is found
+      if (!readOnly) {
+        fetchParcelBoundary(lng, lat);
+      }
+    });
 
     if (!readOnly) {
       draw.current = new MapboxDraw({
@@ -215,14 +298,16 @@ export default function MapDrawing({
 
       map.current.addControl(draw.current, "top-left");
 
-      map.current.on("draw.create", updateArea);
-      map.current.on("draw.update", updateArea);
+      map.current.on("draw.create", () => updateArea(false));
+      map.current.on("draw.update", () => updateArea(false));
       map.current.on("draw.delete", () => {
         setAcreage(null);
         setCurrentPolygon(null);
         setHasChanges(false);
         setAnalysis(null);
         setShowAnalysis(false);
+        setParcelSource(null);
+        setParcelMessage(null);
       });
     }
 
@@ -285,7 +370,7 @@ export default function MapDrawing({
       map.current?.remove();
       map.current = null;
     };
-  }, [initialBoundary, initialAcreage, readOnly, updateArea]);
+  }, [initialBoundary, initialAcreage, readOnly, updateArea, fetchParcelBoundary]);
 
   const handleSave = async () => {
     if (!currentPolygon || !onSave || !acreage) return;
@@ -604,11 +689,36 @@ export default function MapDrawing({
           Property Area
         </div>
         <div className="text-2xl font-bold text-primary">
-          {acreage !== null ? `${acreage} acres` : "—"}
+          {isFetchingParcel ? (
+            <span className="flex items-center gap-2 text-base">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Finding boundary...
+            </span>
+          ) : acreage !== null ? (
+            `${acreage} acres`
+          ) : (
+            "—"
+          )}
         </div>
-        {acreage !== null && (
+        {acreage !== null && !isFetchingParcel && (
           <div className="text-xs text-muted-foreground mt-1">
             {(acreage * 4046.86).toLocaleString()} m²
+          </div>
+        )}
+        {parcelSource && !isFetchingParcel && (
+          <div className="mt-2 pt-2 border-t">
+            <Badge 
+              variant={parcelSource === 'osm' ? 'default' : parcelSource === 'estimated' ? 'secondary' : 'outline'}
+              className="text-[10px]"
+            >
+              {parcelSource === 'osm' && <MapPin className="h-3 w-3 mr-1" />}
+              {parcelSource === 'osm' ? 'Verified boundary' : parcelSource === 'estimated' ? 'Estimated' : 'Manual'}
+            </Badge>
+            {parcelSource !== 'osm' && (
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Drag corners to adjust
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -684,12 +794,22 @@ export default function MapDrawing({
       )}
 
       {/* Instructions */}
-      {!readOnly && !currentPolygon && (
+      {!readOnly && !currentPolygon && !isFetchingParcel && (
         <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border max-w-xs">
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">Draw a polygon:</span>{" "}
-            Click the polygon tool, then click on the map to add points. Double-click to finish.
+            <span className="font-medium text-foreground">Search an address</span> to auto-detect the property boundary, or{" "}
+            <span className="font-medium text-foreground">draw manually</span> using the polygon tool.
           </p>
+        </div>
+      )}
+      
+      {/* Loading overlay for parcel fetch */}
+      {isFetchingParcel && (
+        <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] flex items-center justify-center z-20 pointer-events-none">
+          <div className="bg-background/95 rounded-lg shadow-lg p-4 border flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+            <span className="font-medium">Finding property boundary...</span>
+          </div>
         </div>
       )}
     </div>
