@@ -174,10 +174,25 @@ Remember: You're a trusted advisor, not a robot. Give them the real talk.`;
     // Parse the JSON response, handling potential markdown code blocks
     let analysis;
     try {
-      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      // Remove markdown code blocks (```json, ```, etc.)
+      let cleanedContent = content
+        .replace(/^```(?:json)?\s*/i, '')  // Remove opening code block
+        .replace(/\s*```$/i, '')            // Remove closing code block
+        .trim();
+      
+      // If still wrapped in backticks, try extracting JSON between them
+      const jsonMatch = cleanedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+      if (jsonMatch) {
+        cleanedContent = jsonMatch[1].trim();
+      }
+      
+      // Final cleanup - remove any remaining backticks at start/end
+      cleanedContent = cleanedContent.replace(/^`+|`+$/g, '').trim();
+      
       analysis = JSON.parse(cleanedContent);
     } catch (parseError) {
       console.error('Failed to parse AI response:', content);
+      console.error('Parse error:', parseError);
       return new Response(
         JSON.stringify({ error: 'Failed to parse analysis results' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
