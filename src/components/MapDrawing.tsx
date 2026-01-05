@@ -493,361 +493,387 @@ export default function MapDrawing({
   };
 
   return (
-    <div className="relative w-full h-full min-h-[400px]">
-      <div ref={mapContainer} className={`absolute inset-0 rounded-lg ${showAnalysis ? 'w-[60%]' : 'w-full'} transition-all duration-300`} />
+    <div className="flex flex-col w-full h-full min-h-[400px]">
+      {/* Map Container - Always full width, primary surface */}
+      <div className="relative flex-1 min-h-[400px]">
+        <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
       
-      {/* Layer Toggle */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-1" style={{ left: showAnalysis ? '30%' : '50%' }}>
-        <ToggleGroup type="single" value={mapStyle} onValueChange={(v) => v && handleStyleChange(v as MapStyleKey)} className="gap-1">
-          {Object.entries(MAP_STYLES).map(([key, { label }]) => (
-            <ToggleGroupItem 
-              key={key} 
-              value={key} 
-              size="sm"
-              className="text-xs px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
-            >
-              {label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
+        {/* Layer Toggle */}
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-1">
+          <ToggleGroup type="single" value={mapStyle} onValueChange={(v) => v && handleStyleChange(v as MapStyleKey)} className="gap-1">
+            {Object.entries(MAP_STYLES).map(([key, { label }]) => (
+              <ToggleGroupItem 
+                key={key} 
+                value={key} 
+                size="sm"
+                className="text-xs px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+              >
+                {label}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
       
-      {/* Analysis Panel */}
-      {showAnalysis && analysis && (
-        <div className="absolute right-0 top-0 bottom-0 w-[40%] overflow-y-auto bg-background border-l p-4 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Brain className="h-5 w-5 text-primary" />
-              AI Land Analysis
-            </h3>
-            <Button variant="ghost" size="sm" onClick={() => setShowAnalysis(false)}>
-              ✕
-            </Button>
-          </div>
-
-          <p className="text-sm text-muted-foreground">{analysis.summary}</p>
-
-          {/* Vegetation */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Leaf className="h-4 w-4 text-green-600" />
-                Vegetation
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{analysis.vegetation.type}</span>
-                <Badge className={getDensityColor(analysis.vegetation.density)}>
-                  {analysis.vegetation.density} density
-                </Badge>
-              </div>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                {analysis.vegetation.recommendations.map((rec, i) => (
-                  <li key={i}>• {rec}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Terrain */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Mountain className="h-4 w-4 text-amber-600" />
-                Terrain
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium">{analysis.terrain.type}</span>
-                <Badge variant="outline">{analysis.terrain.slope_estimate} slope</Badge>
-                <Badge variant="outline">{analysis.terrain.drainage} drainage</Badge>
-              </div>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                {analysis.terrain.recommendations.map((rec, i) => (
-                  <li key={i}>• {rec}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Equipment */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-blue-600" />
-                Equipment
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex flex-wrap gap-1">
-                {analysis.equipment.recommended.map((eq, i) => (
-                  <Badge key={i} variant="secondary" className="text-xs">{eq}</Badge>
-                ))}
-              </div>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                {analysis.equipment.considerations.map((con, i) => (
-                  <li key={i}>• {con}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Labor */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Users className="h-4 w-4 text-purple-600" />
-                Labor Estimate
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <div className="text-xl font-bold">{analysis.labor.estimated_crew_size}</div>
-                  <div className="text-xs text-muted-foreground">Crew Size</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold">{analysis.labor.estimated_hours}</div>
-                  <div className="text-xs text-muted-foreground">Hours</div>
-                </div>
-                <div>
-                  <Badge className={getDifficultyColor(analysis.labor.difficulty)}>
-                    {analysis.labor.difficulty}
-                  </Badge>
-                  <div className="text-xs text-muted-foreground mt-1">Difficulty</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Cost Estimate */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-600" />
-                Cost Estimate
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Base rate/acre:</span>
-                <span className="font-medium">${analysis.cost_factors.base_rate_per_acre}</span>
-              </div>
-              <div className="flex items-center justify-between border-t pt-2">
-                <span className="font-medium">Estimated Total:</span>
-                <span className="text-lg font-bold text-primary">
-                  ${analysis.cost_factors.estimated_total.toLocaleString()}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <span className="font-medium">Cost factors:</span>
-                <ul className="mt-1 space-y-0.5">
-                  {analysis.cost_factors.factors_affecting_cost.map((factor, i) => (
-                    <li key={i}>• {factor}</li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Hazards */}
-          {analysis.hazards.length > 0 && (
-            <Card className="border-destructive/50">
-              <CardHeader className="py-3">
-                <CardTitle className="text-sm flex items-center gap-2 text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  Potential Hazards
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="py-2">
-                <ul className="text-xs space-y-1">
-                  {analysis.hazards.map((hazard, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-destructive">⚠</span>
-                      {hazard}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Next Steps */}
-          {analysis.next_steps && analysis.next_steps.length > 0 && (
-            <Card className="border-primary/50 bg-primary/5">
-              <CardHeader className="py-3">
-                <CardTitle className="text-sm flex items-center gap-2 text-primary">
-                  <ArrowRight className="h-4 w-4" />
-                  What To Do Next
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="py-2">
-                <ol className="text-xs space-y-2">
-                  {analysis.next_steps.map((step, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold flex items-center justify-center">
-                        {i + 1}
-                      </span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-      
-      {/* Info Panel */}
-      <div className="absolute top-4 right-16 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border" style={{ right: showAnalysis ? 'calc(40% + 4rem)' : '4rem' }}>
-        <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1">
-          Property Area
-          {parcelSource === 'osm' && (
-            <span className="text-[10px] text-green-600 font-normal">(verified)</span>
-          )}
-          {parcelSource === 'estimated' && (
-            <span className="text-[10px] text-amber-600 font-normal">(estimate)</span>
-          )}
-        </div>
-        <div className={`text-2xl font-bold ${parcelSource === 'estimated' ? 'text-amber-600' : 'text-primary'}`}>
-          {isFetchingParcel ? (
-            <span className="flex items-center gap-2 text-base text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Finding boundary...
-            </span>
-          ) : acreage !== null ? (
-            <>
-              {parcelSource === 'estimated' && <span className="text-base font-normal">~</span>}
-              {acreage} acres
-            </>
-          ) : (
-            "—"
-          )}
-        </div>
-        {acreage !== null && !isFetchingParcel && (
-          <div className="text-xs text-muted-foreground mt-1">
-            {parcelSource === 'estimated' && '~'}
-            {(acreage * 4046.86).toLocaleString(undefined, { maximumFractionDigits: 0 })} m²
-          </div>
-        )}
-        {parcelSource && !isFetchingParcel && (
-          <div className="mt-2 pt-2 border-t">
-            <Badge 
-              variant={parcelSource === 'osm' ? 'default' : parcelSource === 'estimated' ? 'secondary' : 'outline'}
-              className={`text-[10px] ${parcelSource === 'osm' ? 'bg-green-600' : ''}`}
-            >
-              {parcelSource === 'osm' && <MapPin className="h-3 w-3 mr-1" />}
-              {parcelSource === 'osm' ? 'Verified boundary' : parcelSource === 'estimated' ? 'Estimated boundary' : 'Your boundary'}
-            </Badge>
+        {/* Info Panel */}
+        <div className="absolute top-4 right-16 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border">
+          <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1">
+            Property Area
             {parcelSource === 'osm' && (
-              <p className="text-[10px] text-green-600 mt-1 font-medium">
-                ✓ Matched to official property records
-              </p>
+              <span className="text-[10px] text-green-600 font-normal">(verified)</span>
             )}
             {parcelSource === 'estimated' && (
-              <p className="text-[10px] text-amber-600 mt-1">
-                Adjust corners to match your land
-              </p>
+              <span className="text-[10px] text-amber-600 font-normal">(estimate)</span>
             )}
-            {parcelSource === 'manual' && (
-              <p className="text-[10px] text-muted-foreground mt-1">
-                Precisely reflects the area you defined
-              </p>
+          </div>
+          <div className={`text-2xl font-bold ${parcelSource === 'estimated' ? 'text-amber-600' : 'text-primary'}`}>
+            {isFetchingParcel ? (
+              <span className="flex items-center gap-2 text-base text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Finding boundary...
+              </span>
+            ) : acreage !== null ? (
+              <>
+                {parcelSource === 'estimated' && <span className="text-base font-normal">~</span>}
+                {acreage} acres
+              </>
+            ) : (
+              "—"
             )}
+          </div>
+          {acreage !== null && !isFetchingParcel && (
+            <div className="text-xs text-muted-foreground mt-1">
+              {parcelSource === 'estimated' && '~'}
+              {(acreage * 4046.86).toLocaleString(undefined, { maximumFractionDigits: 0 })} m²
+            </div>
+          )}
+          {parcelSource && !isFetchingParcel && (
+            <div className="mt-2 pt-2 border-t">
+              <Badge 
+                variant={parcelSource === 'osm' ? 'default' : parcelSource === 'estimated' ? 'secondary' : 'outline'}
+                className={`text-[10px] ${parcelSource === 'osm' ? 'bg-green-600' : ''}`}
+              >
+                {parcelSource === 'osm' && <MapPin className="h-3 w-3 mr-1" />}
+                {parcelSource === 'osm' ? 'Verified boundary' : parcelSource === 'estimated' ? 'Estimated boundary' : 'Your boundary'}
+              </Badge>
+              {parcelSource === 'osm' && (
+                <p className="text-[10px] text-green-600 mt-1 font-medium">
+                  ✓ Matched to official property records
+                </p>
+              )}
+              {parcelSource === 'estimated' && (
+                <p className="text-[10px] text-amber-600 mt-1">
+                  Adjust corners to match your land
+                </p>
+              )}
+              {parcelSource === 'manual' && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Precisely reflects the area you defined
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons */}
+        {!readOnly && (
+          <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleFitBounds}
+              disabled={!currentPolygon}
+            >
+              <Maximize2 className="h-4 w-4 mr-1" />
+              Fit View
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleClear}
+              disabled={!currentPolygon}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Clear
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleAnalyze}
+              disabled={!currentPolygon || isAnalyzing}
+              className="bg-primary/10 hover:bg-primary/20 border-primary/30"
+            >
+              {isAnalyzing ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Brain className="h-4 w-4 mr-1" />
+              )}
+              AI Analysis
+            </Button>
+            {onSave && (
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={!hasChanges || isSaving}
+              >
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1" />
+                )}
+                Save Boundary
+              </Button>
+            )}
+            {onCreateProject && currentPolygon && acreage && !showAnalysis && (
+              <Button
+                size="sm"
+                onClick={() => onCreateProject(currentPolygon, acreage, analysis || undefined)}
+              >
+                Create Project
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Instructions */}
+        {!readOnly && !currentPolygon && !isFetchingParcel && (
+          <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border max-w-sm">
+            <p className="text-sm font-medium text-foreground mb-1">You decide what land gets analyzed</p>
+            <p className="text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">Search an address</span> to find your property, or{" "}
+              <span className="font-medium text-foreground">draw your boundary</span> with the polygon tool for exact precision.
+            </p>
+          </div>
+        )}
+        
+        {/* Loading overlay for parcel fetch */}
+        {isFetchingParcel && (
+          <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] flex items-center justify-center z-20 pointer-events-none">
+            <div className="bg-background/95 rounded-lg shadow-lg p-4 border flex items-center gap-3">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="font-medium">Looking up property records...</span>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Action Buttons */}
-      {!readOnly && (
-        <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleFitBounds}
-            disabled={!currentPolygon}
-          >
-            <Maximize2 className="h-4 w-4 mr-1" />
-            Fit View
-          </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleClear}
-            disabled={!currentPolygon}
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            Clear
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleAnalyze}
-            disabled={!currentPolygon || isAnalyzing}
-            className="bg-primary/10 hover:bg-primary/20 border-primary/30"
-          >
-            {isAnalyzing ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Brain className="h-4 w-4 mr-1" />
-            )}
-            AI Analysis
-          </Button>
-          {onSave && (
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!hasChanges || isSaving}
-            >
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-1" />
+      {/* Analysis Panel - Below the map, full width continuation */}
+      {showAnalysis && analysis && (
+        <div className="border-t bg-background p-6 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="max-w-5xl mx-auto space-y-6">
+            {/* Analysis Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-full bg-primary/10">
+                  <Brain className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-semibold">Land Analysis Complete</h3>
+                  <p className="text-sm text-muted-foreground">{analysis.summary}</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setShowAnalysis(false)}>
+                Collapse
+              </Button>
+            </div>
+
+            {/* Analysis Grid - Responsive layout */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Vegetation */}
+              <Card>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Leaf className="h-4 w-4 text-green-600" />
+                    Vegetation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{analysis.vegetation.type}</span>
+                    <Badge className={getDensityColor(analysis.vegetation.density)}>
+                      {analysis.vegetation.density} density
+                    </Badge>
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {analysis.vegetation.recommendations.map((rec, i) => (
+                      <li key={i}>• {rec}</li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Terrain */}
+              <Card>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Mountain className="h-4 w-4 text-amber-600" />
+                    Terrain
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-medium">{analysis.terrain.type}</span>
+                    <Badge variant="outline">{analysis.terrain.slope_estimate} slope</Badge>
+                    <Badge variant="outline">{analysis.terrain.drainage} drainage</Badge>
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {analysis.terrain.recommendations.map((rec, i) => (
+                      <li key={i}>• {rec}</li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Equipment */}
+              <Card>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-blue-600" />
+                    Equipment
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 space-y-2">
+                  <div className="flex flex-wrap gap-1">
+                    {analysis.equipment.recommended.map((eq, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">{eq}</Badge>
+                    ))}
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    {analysis.equipment.considerations.map((con, i) => (
+                      <li key={i}>• {con}</li>
+                    ))}
+                  </ul>
+                </CardContent>
+              </Card>
+
+              {/* Labor */}
+              <Card>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Users className="h-4 w-4 text-purple-600" />
+                    Labor Estimate
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2">
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <div className="text-xl font-bold">{analysis.labor.estimated_crew_size}</div>
+                      <div className="text-xs text-muted-foreground">Crew Size</div>
+                    </div>
+                    <div>
+                      <div className="text-xl font-bold">{analysis.labor.estimated_hours}</div>
+                      <div className="text-xs text-muted-foreground">Hours</div>
+                    </div>
+                    <div>
+                      <Badge className={getDifficultyColor(analysis.labor.difficulty)}>
+                        {analysis.labor.difficulty}
+                      </Badge>
+                      <div className="text-xs text-muted-foreground mt-1">Difficulty</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Cost Estimate */}
+              <Card>
+                <CardHeader className="py-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-green-600" />
+                    Cost Estimate
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-2 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Base rate/acre:</span>
+                    <span className="font-medium">${analysis.cost_factors.base_rate_per_acre}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-t pt-2">
+                    <span className="font-medium">Estimated Total:</span>
+                    <span className="text-lg font-bold text-primary">
+                      ${analysis.cost_factors.estimated_total.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-medium">Cost factors:</span>
+                    <ul className="mt-1 space-y-0.5">
+                      {analysis.cost_factors.factors_affecting_cost.map((factor, i) => (
+                        <li key={i}>• {factor}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Hazards */}
+              {analysis.hazards.length > 0 && (
+                <Card className="border-destructive/50">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      Potential Hazards
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="py-2">
+                    <ul className="text-xs space-y-1">
+                      {analysis.hazards.map((hazard, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="text-destructive">⚠</span>
+                          {hazard}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
               )}
-              Save Boundary
-            </Button>
-          )}
-          {onCreateProject && currentPolygon && acreage && (
-            <Button
-              size="sm"
-              onClick={() => onCreateProject(currentPolygon, acreage, analysis || undefined)}
-            >
-              Create Project
-            </Button>
-          )}
+            </div>
+
+            {/* Next Steps - Full width, prominent placement */}
+            {analysis.next_steps && analysis.next_steps.length > 0 && (
+              <Card className="border-primary/50 bg-primary/5">
+                <CardHeader className="py-4">
+                  <CardTitle className="text-base flex items-center gap-2 text-primary">
+                    <ArrowRight className="h-5 w-5" />
+                    What To Do Next
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="py-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {analysis.next_steps.map((step, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
+                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm">{step}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Save Project CTA */}
+            {onCreateProject && currentPolygon && acreage && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  size="lg"
+                  onClick={() => onCreateProject(currentPolygon, acreage, analysis)}
+                  className="gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  Save as Project
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* Show Analysis Button when collapsed */}
       {analysis && !showAnalysis && (
-        <div className="absolute bottom-4 right-4">
-          <Button size="sm" onClick={() => setShowAnalysis(true)}>
-            <Brain className="h-4 w-4 mr-1" />
-            View Analysis
+        <div className="border-t bg-muted/30 p-4 flex items-center justify-center">
+          <Button onClick={() => setShowAnalysis(true)} className="gap-2">
+            <Brain className="h-4 w-4" />
+            View Land Analysis
           </Button>
-        </div>
-      )}
-
-      {/* Instructions */}
-      {!readOnly && !currentPolygon && !isFetchingParcel && (
-        <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border max-w-sm">
-          <p className="text-sm font-medium text-foreground mb-1">You decide what land gets analyzed</p>
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">Search an address</span> to find your property, or{" "}
-            <span className="font-medium text-foreground">draw your boundary</span> with the polygon tool for exact precision.
-          </p>
-        </div>
-      )}
-      
-      {/* Loading overlay for parcel fetch */}
-      {isFetchingParcel && (
-        <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] flex items-center justify-center z-20 pointer-events-none">
-          <div className="bg-background/95 rounded-lg shadow-lg p-4 border flex items-center gap-3">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span className="font-medium">Looking up property records...</span>
-          </div>
         </div>
       )}
     </div>
