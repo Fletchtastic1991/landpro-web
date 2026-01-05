@@ -142,7 +142,9 @@ export default function MapDrawing({
 
       if (error) {
         console.error('Parcel fetch error:', error);
-        toast.info("No property boundary found. Please draw your property boundary.");
+        toast("Define your property boundary", {
+          description: "Use the polygon tool to outline the land you want analyzed."
+        });
         setParcelSource(null);
         setAcreage(null);
         setCurrentPolygon(null);
@@ -190,11 +192,15 @@ export default function MapDrawing({
         setAcreage(null);
         setCurrentPolygon(null);
         setParcelMessage(null);
-        toast.info("No verified boundary found. Please draw your property boundary.");
+        toast("Define your property boundary", {
+          description: "Draw the exact area you want analyzed for the most accurate results."
+        });
       }
     } catch (err) {
       console.error('Error fetching parcel:', err);
-      toast.info("No property boundary found. Please draw your property boundary.");
+      toast("Define your property boundary", {
+        description: "Use the polygon tool to outline the land you want analyzed."
+      });
       setParcelSource(null);
       setAcreage(null);
       setCurrentPolygon(null);
@@ -733,21 +739,21 @@ export default function MapDrawing({
               className={`text-[10px] ${parcelSource === 'osm' ? 'bg-green-600' : ''}`}
             >
               {parcelSource === 'osm' && <MapPin className="h-3 w-3 mr-1" />}
-              {parcelSource === 'osm' ? 'Verified boundary' : parcelSource === 'estimated' ? 'Estimated boundary' : 'Manual drawing'}
+              {parcelSource === 'osm' ? 'Verified boundary' : parcelSource === 'estimated' ? 'Estimated boundary' : 'Your boundary'}
             </Badge>
             {parcelSource === 'osm' && (
               <p className="text-[10px] text-green-600 mt-1 font-medium">
-                ✓ Calculated from actual property data
+                ✓ Matched to official property records
               </p>
             )}
             {parcelSource === 'estimated' && (
               <p className="text-[10px] text-amber-600 mt-1">
-                Drag corners to match your property
+                Adjust corners to match your land
               </p>
             )}
             {parcelSource === 'manual' && (
               <p className="text-[10px] text-muted-foreground mt-1">
-                Calculated from your drawing
+                Precisely reflects the area you defined
               </p>
             )}
           </div>
@@ -826,10 +832,11 @@ export default function MapDrawing({
 
       {/* Instructions */}
       {!readOnly && !currentPolygon && !isFetchingParcel && (
-        <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-3 border max-w-xs">
+        <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border max-w-sm">
+          <p className="text-sm font-medium text-foreground mb-1">You decide what land gets analyzed</p>
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">Search an address</span> to auto-detect the property boundary, or{" "}
-            <span className="font-medium text-foreground">draw manually</span> using the polygon tool.
+            <span className="font-medium text-foreground">Search an address</span> to find your property, or{" "}
+            <span className="font-medium text-foreground">draw your boundary</span> with the polygon tool for exact precision.
           </p>
         </div>
       )}
@@ -839,7 +846,7 @@ export default function MapDrawing({
         <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] flex items-center justify-center z-20 pointer-events-none">
           <div className="bg-background/95 rounded-lg shadow-lg p-4 border flex items-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <span className="font-medium">Finding property boundary...</span>
+            <span className="font-medium">Looking up property records...</span>
           </div>
         </div>
       )}
