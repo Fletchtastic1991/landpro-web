@@ -142,12 +142,16 @@ export default function MapDrawing({
 
       if (error) {
         console.error('Parcel fetch error:', error);
-        toast.error("Couldn't find property boundary. Draw it manually.");
+        toast.info("No property boundary found. Please draw your property boundary.");
         setParcelSource(null);
+        setAcreage(null);
+        setCurrentPolygon(null);
         return;
       }
 
-      if (data?.parcel && draw.current) {
+      // MVP: Only auto-draw VERIFIED parcels (from OSM)
+      // Do NOT auto-draw estimated parcels - require user to manually draw
+      if (data?.parcel && draw.current && data.source === 'osm') {
         // Clear any existing drawings
         draw.current.deleteAll();
         
@@ -163,7 +167,7 @@ export default function MapDrawing({
         setAcreage(acres);
         setCurrentPolygon(data.parcel);
         setHasChanges(true);
-        setParcelSource(data.source);
+        setParcelSource('osm');
         setParcelMessage(data.message);
         setAnalysis(null);
         setShowAnalysis(false);
@@ -178,15 +182,22 @@ export default function MapDrawing({
           { padding: 80, maxZoom: 18 }
         );
 
-        if (data.source === 'osm') {
-          toast.success("Property boundary found!");
-        } else {
-          toast.info("Estimated boundary shown. Adjust the corners if needed.");
-        }
+        toast.success("Property boundary found!");
+      } else {
+        // No verified parcel available - prompt user to draw manually
+        // Don't show acreage until user draws boundary
+        setParcelSource(null);
+        setAcreage(null);
+        setCurrentPolygon(null);
+        setParcelMessage(null);
+        toast.info("No verified boundary found. Please draw your property boundary.");
       }
     } catch (err) {
       console.error('Error fetching parcel:', err);
-      toast.error("Couldn't find property boundary. Draw it manually.");
+      toast.info("No property boundary found. Please draw your property boundary.");
+      setParcelSource(null);
+      setAcreage(null);
+      setCurrentPolygon(null);
     } finally {
       setIsFetchingParcel(false);
     }
