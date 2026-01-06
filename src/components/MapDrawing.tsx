@@ -493,9 +493,9 @@ export default function MapDrawing({
   };
 
   return (
-    <div className="flex flex-col w-full h-full min-h-[400px]">
+    <div className="flex flex-col w-full">
       {/* Map Container - Always full width, primary surface */}
-      <div className="relative flex-1 min-h-[400px]">
+      <div className="relative h-[600px] min-h-[400px]">
         <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
       
         {/* Layer Toggle */}
@@ -658,145 +658,145 @@ export default function MapDrawing({
 
       {/* Analysis Panel - Below the map, full width continuation */}
       {showAnalysis && analysis && (
-        <div className="border-t bg-background p-6 animate-in slide-in-from-bottom-4 duration-300">
-          <div className="max-w-5xl mx-auto space-y-6">
+        <div className="border-t bg-background px-4 py-8 sm:px-6 lg:px-8 animate-in fade-in duration-300">
+          <div className="max-w-5xl mx-auto space-y-8">
             {/* Analysis Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Brain className="h-6 w-6 text-primary" />
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 rounded-full bg-primary/10 flex-shrink-0">
+                  <Brain className="h-7 w-7 text-primary" />
                 </div>
-                <div>
-                  <h3 className="text-xl font-semibold">Land Analysis Complete</h3>
-                  <p className="text-sm text-muted-foreground">{analysis.summary}</p>
+                <div className="space-y-1">
+                  <h3 className="text-2xl font-semibold tracking-tight">Land Analysis Complete</h3>
+                  <p className="text-base text-muted-foreground leading-relaxed max-w-2xl">{analysis.summary}</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowAnalysis(false)}>
+              <Button variant="ghost" size="sm" onClick={() => setShowAnalysis(false)} className="flex-shrink-0">
                 Collapse
               </Button>
             </div>
 
             {/* Analysis Grid - Responsive layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* Vegetation */}
-              <Card>
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Leaf className="h-4 w-4 text-green-600" />
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Leaf className="h-5 w-5 text-green-600" />
                     Vegetation
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-2 space-y-2">
+                <CardContent className="pb-4 px-5 space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{analysis.vegetation.type}</span>
+                    <span className="font-medium">{analysis.vegetation.type}</span>
                     <Badge className={getDensityColor(analysis.vegetation.density)}>
                       {analysis.vegetation.density} density
                     </Badge>
                   </div>
-                  <ul className="text-xs text-muted-foreground space-y-1">
+                  <ul className="text-sm text-muted-foreground space-y-1.5">
                     {analysis.vegetation.recommendations.map((rec, i) => (
-                      <li key={i}>• {rec}</li>
+                      <li key={i} className="leading-relaxed">• {rec}</li>
                     ))}
                   </ul>
                 </CardContent>
               </Card>
 
               {/* Terrain */}
-              <Card>
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Mountain className="h-4 w-4 text-amber-600" />
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Mountain className="h-5 w-5 text-amber-600" />
                     Terrain
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-2 space-y-2">
+                <CardContent className="pb-4 px-5 space-y-3">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium">{analysis.terrain.type}</span>
+                    <span className="font-medium">{analysis.terrain.type}</span>
                     <Badge variant="outline">{analysis.terrain.slope_estimate} slope</Badge>
                     <Badge variant="outline">{analysis.terrain.drainage} drainage</Badge>
                   </div>
-                  <ul className="text-xs text-muted-foreground space-y-1">
+                  <ul className="text-sm text-muted-foreground space-y-1.5">
                     {analysis.terrain.recommendations.map((rec, i) => (
-                      <li key={i}>• {rec}</li>
+                      <li key={i} className="leading-relaxed">• {rec}</li>
                     ))}
                   </ul>
                 </CardContent>
               </Card>
 
               {/* Equipment */}
-              <Card>
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Wrench className="h-4 w-4 text-blue-600" />
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-blue-600" />
                     Equipment
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-2 space-y-2">
-                  <div className="flex flex-wrap gap-1">
+                <CardContent className="pb-4 px-5 space-y-3">
+                  <div className="flex flex-wrap gap-1.5">
                     {analysis.equipment.recommended.map((eq, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">{eq}</Badge>
+                      <Badge key={i} variant="secondary">{eq}</Badge>
                     ))}
                   </div>
-                  <ul className="text-xs text-muted-foreground space-y-1">
+                  <ul className="text-sm text-muted-foreground space-y-1.5">
                     {analysis.equipment.considerations.map((con, i) => (
-                      <li key={i}>• {con}</li>
+                      <li key={i} className="leading-relaxed">• {con}</li>
                     ))}
                   </ul>
                 </CardContent>
               </Card>
 
               {/* Labor */}
-              <Card>
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Users className="h-4 w-4 text-purple-600" />
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Users className="h-5 w-5 text-purple-600" />
                     Labor Estimate
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-2">
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                <CardContent className="pb-4 px-5">
+                  <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
-                      <div className="text-xl font-bold">{analysis.labor.estimated_crew_size}</div>
-                      <div className="text-xs text-muted-foreground">Crew Size</div>
+                      <div className="text-2xl font-bold">{analysis.labor.estimated_crew_size}</div>
+                      <div className="text-sm text-muted-foreground">Crew Size</div>
                     </div>
                     <div>
-                      <div className="text-xl font-bold">{analysis.labor.estimated_hours}</div>
-                      <div className="text-xs text-muted-foreground">Hours</div>
+                      <div className="text-2xl font-bold">{analysis.labor.estimated_hours}</div>
+                      <div className="text-sm text-muted-foreground">Hours</div>
                     </div>
                     <div>
                       <Badge className={getDifficultyColor(analysis.labor.difficulty)}>
                         {analysis.labor.difficulty}
                       </Badge>
-                      <div className="text-xs text-muted-foreground mt-1">Difficulty</div>
+                      <div className="text-sm text-muted-foreground mt-1">Difficulty</div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Cost Estimate */}
-              <Card>
-                <CardHeader className="py-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-green-600" />
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2 pt-4 px-5">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-green-600" />
                     Cost Estimate
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-2 space-y-2">
+                <CardContent className="pb-4 px-5 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Base rate/acre:</span>
+                    <span className="text-muted-foreground">Base rate/acre:</span>
                     <span className="font-medium">${analysis.cost_factors.base_rate_per_acre}</span>
                   </div>
-                  <div className="flex items-center justify-between border-t pt-2">
+                  <div className="flex items-center justify-between border-t pt-3">
                     <span className="font-medium">Estimated Total:</span>
-                    <span className="text-lg font-bold text-primary">
+                    <span className="text-xl font-bold text-primary">
                       ${analysis.cost_factors.estimated_total.toLocaleString()}
                     </span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-sm text-muted-foreground">
                     <span className="font-medium">Cost factors:</span>
-                    <ul className="mt-1 space-y-0.5">
+                    <ul className="mt-1.5 space-y-1">
                       {analysis.cost_factors.factors_affecting_cost.map((factor, i) => (
-                        <li key={i}>• {factor}</li>
+                        <li key={i} className="leading-relaxed">• {factor}</li>
                       ))}
                     </ul>
                   </div>
@@ -805,18 +805,18 @@ export default function MapDrawing({
 
               {/* Hazards */}
               {analysis.hazards.length > 0 && (
-                <Card className="border-destructive/50">
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-2 text-destructive">
-                      <AlertTriangle className="h-4 w-4" />
+                <Card className="border-destructive/50 shadow-sm">
+                  <CardHeader className="pb-2 pt-4 px-5">
+                    <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-5 w-5" />
                       Potential Hazards
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="py-2">
-                    <ul className="text-xs space-y-1">
+                  <CardContent className="pb-4 px-5">
+                    <ul className="text-sm space-y-2">
                       {analysis.hazards.map((hazard, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-destructive">⚠</span>
+                        <li key={i} className="flex items-start gap-2 leading-relaxed">
+                          <span className="text-destructive flex-shrink-0">⚠</span>
                           {hazard}
                         </li>
                       ))}
@@ -828,21 +828,21 @@ export default function MapDrawing({
 
             {/* Next Steps - Full width, prominent placement */}
             {analysis.next_steps && analysis.next_steps.length > 0 && (
-              <Card className="border-primary/50 bg-primary/5">
-                <CardHeader className="py-4">
-                  <CardTitle className="text-base flex items-center gap-2 text-primary">
+              <Card className="border-primary/50 bg-primary/5 shadow-sm">
+                <CardHeader className="pb-3 pt-5 px-5">
+                  <CardTitle className="text-lg flex items-center gap-2 text-primary">
                     <ArrowRight className="h-5 w-5" />
                     What To Do Next
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="py-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <CardContent className="pb-5 px-5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {analysis.next_steps.map((step, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-background/50">
-                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">
+                      <div key={i} className="flex items-start gap-3 p-4 rounded-lg bg-background/60 border border-primary/10">
+                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
                           {i + 1}
                         </span>
-                        <span className="text-sm">{step}</span>
+                        <span className="text-sm leading-relaxed">{step}</span>
                       </div>
                     ))}
                   </div>
@@ -852,7 +852,7 @@ export default function MapDrawing({
 
             {/* Save Project CTA */}
             {onCreateProject && currentPolygon && acreage && (
-              <div className="flex justify-center pt-2">
+              <div className="flex justify-center pt-4 pb-8">
                 <Button
                   size="lg"
                   onClick={() => onCreateProject(currentPolygon, acreage, analysis)}
