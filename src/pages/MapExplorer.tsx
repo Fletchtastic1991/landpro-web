@@ -160,16 +160,14 @@ export default function MapExplorer() {
             </p>
           </div>
         </div>
-        <Card className="border-2 overflow-hidden">
+        <Card className="border-2 overflow-visible">
           <CardContent className="p-0">
-            <div className="h-[650px]">
-              <MapDrawing 
-                readOnly={false} 
-                onCreateProject={handleCreateProject}
-                intent={selectedIntent}
-                autoAnalyze={!!selectedIntent}
-              />
-            </div>
+            <MapDrawing 
+              readOnly={false} 
+              onCreateProject={handleCreateProject}
+              intent={selectedIntent}
+              autoAnalyze={!!selectedIntent}
+            />
           </CardContent>
         </Card>
       </section>
