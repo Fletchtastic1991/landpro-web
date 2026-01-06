@@ -192,6 +192,44 @@ export type Database = {
           },
         ]
       }
+      memory_records: {
+        Row: {
+          category: Database["public"]["Enums"]["memory_category"]
+          confidence: Database["public"]["Enums"]["memory_confidence"]
+          parcel_id: string
+          record_id: string
+          source: string
+          timestamp: string
+          value: Json | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["memory_category"]
+          confidence: Database["public"]["Enums"]["memory_confidence"]
+          parcel_id: string
+          record_id?: string
+          source: string
+          timestamp?: string
+          value?: Json | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["memory_category"]
+          confidence?: Database["public"]["Enums"]["memory_confidence"]
+          parcel_id?: string
+          record_id?: string
+          source?: string
+          timestamp?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_records_parcel_id_fkey"
+            columns: ["parcel_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
@@ -441,6 +479,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      memory_category:
+        | "geometry"
+        | "topography"
+        | "surface"
+        | "access"
+        | "restriction"
+        | "infrastructure"
+        | "observation"
+        | "metadata"
+      memory_confidence: "High" | "Medium" | "Low"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -569,6 +617,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      memory_category: [
+        "geometry",
+        "topography",
+        "surface",
+        "access",
+        "restriction",
+        "infrastructure",
+        "observation",
+        "metadata",
+      ],
+      memory_confidence: ["High", "Medium", "Low"],
     },
   },
 } as const
