@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import MemoryInspector from "@/components/MemoryInspector";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ export default function MapExplorer() {
   const [projectDescription, setProjectDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [selectedIntent, setSelectedIntent] = useState<LandIntent | null>(null);
+  const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
 
   const handleCreateProject = (boundary: GeoJSON.Polygon, acreage: number, analysis?: any) => {
     const intentLabel = selectedIntent 
@@ -234,6 +236,9 @@ export default function MapExplorer() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Memory Inspector Debug Panel - DEV ONLY */}
+      <MemoryInspector parcelId={debugParcelId} />
     </div>
   );
 }
