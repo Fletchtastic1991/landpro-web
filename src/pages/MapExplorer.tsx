@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
+import { Loader2, Bug } from "lucide-react";
 import MapDrawing from "@/components/MapDrawing";
 import IntentSelector, { LandIntent, INTENT_OPTIONS } from "@/components/IntentSelector";
 import { supabase } from "@/integrations/supabase/client";
@@ -31,6 +31,7 @@ export default function MapExplorer() {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedIntent, setSelectedIntent] = useState<LandIntent | null>(null);
   const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
+  const [showDevTools, setShowDevTools] = useState(false);
 
   const handleCreateProject = (boundary: GeoJSON.Polygon, acreage: number, analysis?: any) => {
     const intentLabel = selectedIntent 
@@ -237,8 +238,21 @@ export default function MapExplorer() {
         </DialogContent>
       </Dialog>
 
+      {/* DEV TOOLS Toggle Button - Non-Production */}
+      <button
+        onClick={() => setShowDevTools(!showDevTools)}
+        className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-semibold shadow-lg border transition-colors ${
+          showDevTools 
+            ? "bg-amber-500 text-black border-amber-600 hover:bg-amber-400" 
+            : "bg-zinc-800 text-amber-400 border-zinc-700 hover:bg-zinc-700"
+        }`}
+      >
+        <Bug className="h-4 w-4" />
+        DEV TOOLS
+      </button>
+
       {/* Memory Inspector Debug Panel - DEV ONLY */}
-      <MemoryInspector parcelId={debugParcelId} />
+      {showDevTools && <MemoryInspector parcelId={debugParcelId} />}
     </div>
   );
 }
