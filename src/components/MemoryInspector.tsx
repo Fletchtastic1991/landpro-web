@@ -63,9 +63,7 @@ export function MemoryInspector({ parcelId }: MemoryInspectorProps) {
     refetchConflicts();
   };
 
-  if (!parcelId) {
-    return null;
-  }
+  // Removed early return - panel visibility is controlled by parent DEV TOOLS toggle
 
   const isLoading = isLoadingRecords || isLoadingUnknowns || isLoadingConflicts;
   const hasErrors = recordsError || unknownsError || conflictsError;
@@ -102,7 +100,7 @@ export function MemoryInspector({ parcelId }: MemoryInspectorProps) {
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground font-mono">
-                Parcel: {parcelId.slice(0, 8)}...
+                Parcel: {parcelId ? `${parcelId.slice(0, 8)}...` : 'None selected'}
               </p>
             </CardHeader>
 
