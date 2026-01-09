@@ -25,6 +25,7 @@
 import { evaluateParcel } from '@/lib/sitepro';
 import type { MemoryRecord, MemoryConflict } from '@/lib/memory/types';
 import type { SiteProResult } from '@/lib/sitepro/types';
+import { logParcelEvaluated, logErrorOccurred } from '@/lib/events';
 import type {
   DecisionEngineInput,
   DecisionEngineResult,
@@ -105,11 +106,14 @@ export function executeDecisionEngine(
   try {
     siteProResult = evaluateParcel(parcel_id, memory_records);
   } catch (e) {
+    const errorMessage = e instanceof Error ? e.message : 'Unknown error';
+    // Log error event (non-blocking, silent)
+    logErrorOccurred('SITEPRO_FAILED', errorMessage, parcel_id);
     return {
       error: {
         code: 'SITEPRO_FAILED',
         message: 'SitePro evaluation failed',
-        details: e instanceof Error ? e.message : 'Unknown error',
+        details: errorMessage,
       },
     };
   }
@@ -148,6 +152,9 @@ export function executeDecisionEngine(
     // Raw SitePro result for full traceability
     sitepro_result: siteProResult,
   };
+
+  // Log parcel evaluation event (non-blocking, silent)
+  logParcelEvaluated(parcel_id, result.execution_id, siteProResult.outcome);
 
   // STEP 5: Stop — do not call any other Pro or perform any evaluation
   return { result };
