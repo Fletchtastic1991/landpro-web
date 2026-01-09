@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { ArrowLeft, Loader2, MapPin, FileText, AlertTriangle, Map, Leaf, Mountain, Wrench, DollarSign, Users, Brain, RefreshCw, Cog } from "lucide-react";
 import { format } from "date-fns";
 import MapDrawing from "@/components/MapDrawing";
+import AnalysisDisclaimer from "@/components/AnalysisDisclaimer";
 import type { Json } from "@/integrations/supabase/types";
 interface Project {
   id: string;
@@ -307,6 +308,9 @@ function AnalysisDisplay({ analysis, createdAt }: { analysis: LandAnalysis; crea
           </Card>
         )}
       </div>
+
+      {/* Informational Disclaimer */}
+      <AnalysisDisclaimer />
     </div>
   );
 }
