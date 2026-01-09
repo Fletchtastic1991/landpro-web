@@ -120,7 +120,7 @@ Return your analysis as JSON:
 
 Remember: You're a trusted advisor, not a robot. Give them the real talk.`;
 
-    console.log(`Calling Lovable AI for land analysis (intent: ${intent || 'evaluate'})...`);
+    // Starting land analysis
     
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -138,8 +138,8 @@ Remember: You're a trusted advisor, not a robot. Give them the real talk.`;
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      // Log generic AI error without exposing details
+      console.error('AI gateway request failed');
       
       if (response.status === 429) {
         return new Response(
@@ -164,7 +164,7 @@ Remember: You're a trusted advisor, not a robot. Give them the real talk.`;
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
-      console.error('No content in AI response:', data);
+      // Log generic error without exposing AI response
       return new Response(
         JSON.stringify({ error: 'Invalid AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -191,15 +191,15 @@ Remember: You're a trusted advisor, not a robot. Give them the real talk.`;
       
       analysis = JSON.parse(cleanedContent);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', content);
-      console.error('Parse error:', parseError);
+      // Log generic parse error without exposing content
+      console.error('Analysis response parsing failed');
       return new Response(
         JSON.stringify({ error: 'Failed to parse analysis results' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Land analysis completed successfully');
+    // Land analysis completed
     
     return new Response(
       JSON.stringify({ analysis }),
@@ -207,7 +207,8 @@ Remember: You're a trusted advisor, not a robot. Give them the real talk.`;
     );
 
   } catch (error) {
-    console.error('Error in analyze-land function:', error);
+    // Log generic error for operational monitoring
+    console.error('Land analysis failed');
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

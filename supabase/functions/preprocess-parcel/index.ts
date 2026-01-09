@@ -20,7 +20,7 @@ serve(async (req) => {
 
     const { user_id, parcel_geometry, lat, lng, property_goal } = await req.json();
 
-    console.log("Processing parcel for user:", user_id);
+    // Log operation start without PII
 
     // ---- AUTO PROPERTY CLASSIFICATION ----
     const property_type = detectPropertyType(parcel_geometry);
@@ -59,8 +59,9 @@ serve(async (req) => {
       });
 
     if (uploadError) {
-      console.error("Upload error:", uploadError);
-      throw new Error(`Failed to upload preprocessed data: ${uploadError.message}`);
+      // Log generic error without exposing internal details
+      console.error("Upload failed");
+      throw new Error("Failed to upload preprocessed data");
     }
 
     // Create analysis job row
@@ -75,20 +76,21 @@ serve(async (req) => {
       .single();
 
     if (jobError) {
-      console.error("Job creation error:", jobError);
-      throw new Error(`Failed to create analysis job: ${jobError.message}`);
+      // Log generic error without exposing internal details
+      console.error("Job creation failed");
+      throw new Error("Failed to create analysis job");
     }
 
-    console.log("Created analysis job:", job.id);
+    // Log success without exposing IDs
 
     return new Response(JSON.stringify({ job_id: job.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err) {
-    console.error("Preprocess parcel error:", err);
-    const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    // Log generic error for operational monitoring
+    console.error("Preprocess parcel failed");
+    return new Response(JSON.stringify({ error: "Processing failed" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
