@@ -13,7 +13,7 @@ serve(async (req) => {
   try {
     const { clientName, jobDescription, propertySize, propertyUnit, materialNotes } = await req.json();
     
-    console.log('Generating quote for:', { clientName, jobDescription, propertySize, propertyUnit });
+    // Log operation start without PII
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -92,13 +92,13 @@ Consider factors like:
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      // Log generic AI error without exposing details
+      console.error('AI gateway request failed');
+      throw new Error('AI service temporarily unavailable');
     }
 
     const data = await response.json();
-    console.log('AI Response:', JSON.stringify(data));
+    // AI response received (not logging content)
 
     let quoteData;
     
@@ -125,14 +125,15 @@ Consider factors like:
       timestamp: new Date().toISOString()
     };
 
-    console.log('Generated quote:', result);
+    // Log success without exposing quote details
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in generate-quote function:', error);
+    // Log generic error for operational monitoring
+    console.error('Quote generation failed');
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
     }), {
