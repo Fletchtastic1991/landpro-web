@@ -13,6 +13,7 @@
 
 import { executeDecisionEngine } from '@/lib/decision-engine';
 import { memoryCore } from '@/lib/memory';
+import { logErrorOccurred } from '@/lib/events';
 import type { SequencerInput, SequencerOutput, SequencerParcelResult } from './types';
 
 /**
@@ -99,6 +100,9 @@ export async function executeSequencer(input: SequencerInput): Promise<Sequencer
     } catch (err) {
       // Pre-Decision Engine failure (e.g., Memory fetch failed)
       const errorMessage = err instanceof Error ? err.message : 'Unknown error loading parcel data';
+      
+      // Log error event (non-blocking, silent)
+      logErrorOccurred('SEQUENCER_PARCEL_FAILED', errorMessage, parcel_id);
       
       results.push({
         parcel_id,
