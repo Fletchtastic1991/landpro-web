@@ -659,17 +659,18 @@ export default function MapDrawing({
 
       {/* Analysis Panel - Below the map, full width continuation */}
       {showAnalysis && analysis && (
-        <div className="border-t bg-background px-4 py-8 sm:px-6 lg:px-8 animate-in fade-in duration-300">
-          <div className="max-w-5xl mx-auto space-y-8">
+        <div className="border-t bg-background px-4 py-10 sm:px-6 lg:px-8 animate-in fade-in duration-300">
+          <div className="max-w-5xl mx-auto space-y-10">
             {/* Analysis Header */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-full bg-primary/10 flex-shrink-0">
                   <Brain className="h-7 w-7 text-primary" />
                 </div>
-                <div className="space-y-1">
-                  <h3 className="text-2xl font-semibold tracking-tight">Land Analysis Complete</h3>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-semibold tracking-tight">Land Clearing Assessment</h3>
                   <p className="text-base text-muted-foreground leading-relaxed max-w-2xl">{analysis.summary}</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">Analysis is based on mapped boundaries and available data.</p>
                 </div>
               </div>
               <Button variant="ghost" size="sm" onClick={() => setShowAnalysis(false)} className="flex-shrink-0">
@@ -738,6 +739,7 @@ export default function MapDrawing({
                       <Badge key={i} variant="secondary">{eq}</Badge>
                     ))}
                   </div>
+                  <p className="text-xs text-muted-foreground/70">Common equipment examples. Contractors may use different methods or equipment.</p>
                   <ul className="text-sm text-muted-foreground space-y-1.5">
                     {analysis.equipment.considerations.map((con, i) => (
                       <li key={i} className="leading-relaxed">• {con}</li>
@@ -793,6 +795,7 @@ export default function MapDrawing({
                       ${analysis.cost_factors.estimated_total.toLocaleString()}
                     </span>
                   </div>
+                  <p className="text-xs text-muted-foreground/70">Actual costs vary by contractor, access, and disposal method.</p>
                   <div className="text-sm text-muted-foreground">
                     <span className="font-medium">Cost factors:</span>
                     <ul className="mt-1.5 space-y-1">
@@ -806,9 +809,9 @@ export default function MapDrawing({
 
               {/* Hazards */}
               {analysis.hazards.length > 0 && (
-                <Card className="border-destructive/50 shadow-sm">
+                <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
                   <CardHeader className="pb-2 pt-4 px-5">
-                    <CardTitle className="text-base flex items-center gap-2 text-destructive">
+                    <CardTitle className="text-base flex items-center gap-2 text-amber-700">
                       <AlertTriangle className="h-5 w-5" />
                       Potential Hazards
                     </CardTitle>
@@ -816,8 +819,8 @@ export default function MapDrawing({
                   <CardContent className="pb-4 px-5">
                     <ul className="text-sm space-y-2">
                       {analysis.hazards.map((hazard, i) => (
-                        <li key={i} className="flex items-start gap-2 leading-relaxed">
-                          <span className="text-destructive flex-shrink-0">⚠</span>
+                        <li key={i} className="flex items-start gap-2 leading-relaxed text-muted-foreground">
+                          <span className="text-amber-600 flex-shrink-0">•</span>
                           {hazard}
                         </li>
                       ))}
@@ -829,11 +832,11 @@ export default function MapDrawing({
 
             {/* Next Steps - Full width, prominent placement */}
             {analysis.next_steps && analysis.next_steps.length > 0 && (
-              <Card className="border-primary/50 bg-primary/5 shadow-sm">
+              <Card className="border-primary/30 bg-primary/5 shadow-sm">
                 <CardHeader className="pb-3 pt-5 px-5">
                   <CardTitle className="text-lg flex items-center gap-2 text-primary">
                     <ArrowRight className="h-5 w-5" />
-                    What To Do Next
+                    Recommended Next Steps (Before Hiring)
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pb-5 px-5">
@@ -856,14 +859,14 @@ export default function MapDrawing({
 
             {/* Save Project CTA */}
             {onCreateProject && currentPolygon && acreage && (
-              <div className="flex justify-center pt-4 pb-8">
+              <div className="flex justify-center pt-6 pb-10">
                 <Button
                   size="lg"
                   onClick={() => onCreateProject(currentPolygon, acreage, analysis)}
                   className="gap-2"
                 >
                   <Save className="h-4 w-4" />
-                  Save as Project
+                  Save This Analysis
                 </Button>
               </div>
             )}
