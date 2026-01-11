@@ -498,6 +498,13 @@ export default function MapDrawing({
       {/* Map Container - Always full width, primary surface */}
       <div className="relative h-[600px] min-h-[400px]">
         <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
+        
+        {/* Imagery Recency Notice */}
+        <div className="absolute bottom-4 right-4 z-10">
+          <p className="text-[10px] text-muted-foreground/70 bg-background/80 backdrop-blur-sm px-2 py-1 rounded">
+            Imagery may not reflect recent site changes. Verify conditions on-site.
+          </p>
+        </div>
       
         {/* Layer Toggle */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-1">
