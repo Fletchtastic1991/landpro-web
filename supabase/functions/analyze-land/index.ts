@@ -114,7 +114,7 @@ Return your analysis as JSON:
     "estimated_total": number,
     "factors_affecting_cost": ["what drives the price up or down"]
   },
-  "next_steps": ["3-5 clear actions they should take, in order of priority"],
+  "next_steps": ["3-5 practical next steps using spatial reasoning — describe WHERE on the property actions should happen and WHY location matters (e.g., 'Walk the lower corner near the road — that's where drainage tends to collect' or 'Check the tree line along the eastern edge, access from there is often more viable'). Use calm, experienced language like 'tends to', 'often influences', 'more viable' rather than absolutes. Never say 'AI recommends' or 'optimal'. Write like an experienced land planner thinking ahead about placement, access, drainage, and future use."],
   "summary": "Write 2-3 sentences that tell them exactly what this land is good for, what might get in their way, and what they should do first. Be direct and confident — like you've seen a hundred properties just like this one."
 }
 
