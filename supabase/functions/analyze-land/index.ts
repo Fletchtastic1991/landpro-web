@@ -83,6 +83,25 @@ THE PROPERTY:
 - Location: ${centroid[1].toFixed(4)}°N, ${Math.abs(centroid[0]).toFixed(4)}°W
 ${location ? `- Address: ${location}` : ''}
 
+CRITICAL COST ESTIMATION GUIDANCE:
+Before estimating costs, assess the CURRENT STATE of the property:
+
+1. EXISTING DEVELOPMENT CHECK:
+   - If the parcel appears to be a small residential lot (typically < 1 acre in suburban/urban areas), assume it likely has existing structures (house, driveway, utilities already connected).
+   - If the address suggests residential development (street address with house number), treat as partially or fully developed.
+   - Developed lots do NOT need full land conversion costs — only incremental site work.
+
+2. COST ADJUSTMENT RULES:
+   - For lots with existing homes/structures: Reduce base costs by 60-80%. The land is already prepared, utilities exist, access is established.
+   - For partially developed lots: Reduce base costs by 30-50%. Some infrastructure exists.
+   - For raw undeveloped land only: Use full baseline estimates.
+   - When unsure about development status, err on the side of LOWER estimates and widen the range.
+
+3. SANITY CHECK:
+   - A typical 0.25-acre residential lot with an existing home should NOT show $15,000+ in land prep costs.
+   - Reasonable estimates for minor site work on developed lots: $500-$3,000 range.
+   - Only major demolition/redevelopment projects justify higher costs on small developed parcels.
+
 Give them a straight-talking assessment. Write like you're advising a friend — confident, opinionated, and useful. No technical jargon. No academic language. Just practical guidance they can act on today.
 
 Return your analysis as JSON:
@@ -99,8 +118,13 @@ Return your analysis as JSON:
     "drainage": "good/okay/poor",
     "recommendations": ["2-3 things to watch for or work with"]
   },
+  "existing_development": {
+    "status": "undeveloped/partially_developed/developed",
+    "indicators": ["what suggests development status — address type, lot size, location context"],
+    "infrastructure_present": ["list likely existing infrastructure — driveway, utilities, cleared areas, structures"]
+  },
   "equipment": {
-    "recommended": ["list the actual equipment they'll need, be specific"],
+    "recommended": ["list the actual equipment they'll need, be specific — scale appropriately for developed vs raw land"],
     "considerations": ["any gotchas or things that affect equipment choice"]
   },
   "labor": {
@@ -110,15 +134,18 @@ Return your analysis as JSON:
   },
   "hazards": ["real things to watch out for — be specific and practical"],
   "cost_factors": {
+    "development_adjustment": "none/partial/significant (based on existing development)",
     "base_rate_per_acre": number,
     "estimated_total": number,
-    "factors_affecting_cost": ["what drives the price up or down"]
+    "cost_range_low": number,
+    "cost_range_high": number,
+    "factors_affecting_cost": ["what drives the price up or down — include development status impact"]
   },
   "next_steps": ["3-5 practical next steps using spatial reasoning — describe WHERE on the property actions should happen and WHY location matters (e.g., 'Walk the lower corner near the road — that's where drainage tends to collect' or 'Check the tree line along the eastern edge, access from there is often more viable'). Use calm, experienced language like 'tends to', 'often influences', 'more viable' rather than absolutes. Never say 'AI recommends' or 'optimal'. Write like an experienced land planner thinking ahead about placement, access, drainage, and future use."],
   "summary": "Write 2-3 sentences that tell them exactly what this land is good for, what might get in their way, and what they should do first. Be direct and confident — like you've seen a hundred properties just like this one."
 }
 
-Remember: You're a trusted advisor, not a robot. Give them the real talk.`;
+Remember: You're a trusted advisor, not a robot. Give them the real talk. And remember — a small lot with a house on it is NOT raw land.`;
 
     // Starting land analysis
     
