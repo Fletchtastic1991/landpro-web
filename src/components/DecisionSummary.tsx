@@ -382,49 +382,52 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
   }
 
   return (
-    <Card className="border-slate-200 bg-slate-50/50 shadow-sm">
-      <CardHeader className="pb-3 pt-5 px-5">
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Target className="h-5 w-5 text-slate-600" />
+    <Card className="shadow-sm">
+      <CardHeader className="pb-2 pt-4 px-5">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Target className="h-5 w-5 text-muted-foreground" />
           Decision Summary
         </CardTitle>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Derived from analysis data. Acknowledges uncertainty where it exists.
         </p>
       </CardHeader>
-      <CardContent className="pb-5 px-5 space-y-6">
+      <CardContent className="pb-4 px-5 space-y-5">
         {/* Decision Summary Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-lg bg-background border">
-            <div className="text-sm text-muted-foreground mb-2">Clearing Effort</div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="space-y-1.5">
+            <div className="text-sm text-muted-foreground">Clearing Effort</div>
             <Badge className={`${getEffortBadgeColor(clearingEffort)} text-sm`}>
               {clearingEffort}
             </Badge>
           </div>
-          <div className="p-4 rounded-lg bg-background border">
-            <div className="text-sm text-muted-foreground mb-2">Budget Uncertainty</div>
+          <div className="space-y-1.5">
+            <div className="text-sm text-muted-foreground">Budget Uncertainty</div>
             <Badge className={`${getEffortBadgeColor(budgetUncertainty)} text-sm`}>
               {budgetUncertainty}
             </Badge>
           </div>
-          <div className="p-4 rounded-lg bg-background border">
-            <div className="text-sm text-muted-foreground mb-2">Development Readiness</div>
+          <div className="space-y-1.5">
+            <div className="text-sm text-muted-foreground">Development Readiness</div>
             <Badge className={`${getReadinessBadgeColor(readiness)} text-sm`}>
               {readiness}
             </Badge>
           </div>
         </div>
 
+        {/* Divider */}
+        <div className="border-t" />
+
         {/* Primary Risk Drivers */}
         {riskDrivers.length > 0 && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             <h4 className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-amber-600" />
               Primary Risk Drivers
             </h4>
-            <ul className="space-y-2">
+            <ul className="space-y-1.5">
               {riskDrivers.map((driver, i) => (
-                <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
+                <li key={i} className="text-sm text-muted-foreground flex items-start gap-2 leading-relaxed">
                   <span className="text-amber-600 flex-shrink-0 mt-0.5">•</span>
                   {driver}
                 </li>
@@ -435,7 +438,7 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
 
         {/* Cost Sensitivity & Regional Context */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg bg-background border space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <Scale className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Cost Sensitivity</span>
@@ -447,7 +450,7 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
               Largest unknown: {costSensitivity.unknowns}
             </p>
           </div>
-          <div className="p-4 rounded-lg bg-background border space-y-2">
+          <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm font-medium">Regional Context</span>
@@ -461,70 +464,76 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
           </div>
         </div>
 
+        {/* Divider */}
+        <div className="border-t" />
+
         {/* Intended Use Implications */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <h4 className="text-sm font-medium flex items-center gap-2">
-            <Home className="h-4 w-4 text-blue-600" />
+            <Home className="h-4 w-4 text-muted-foreground" />
             Clearing Priorities by Intended Use
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="p-3 rounded-lg bg-background border">
-              <div className="flex items-center gap-2 mb-2">
-                <Home className="h-4 w-4 text-slate-500" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Home className="h-3 w-3 text-muted-foreground" />
                 <span className="text-sm font-medium">Homesite</span>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Focus on building envelope and driveway corridor. Preserve perimeter screening where terrain allows.
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-background border">
-              <div className="flex items-center gap-2 mb-2">
-                <Trees className="h-4 w-4 text-green-600" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Trees className="h-3 w-3 text-green-600" />
                 <span className="text-sm font-medium">Agricultural</span>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Full clearing with stump removal. Drainage and soil prep become primary concerns.
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-background border">
-              <div className="flex items-center gap-2 mb-2">
-                <Tent className="h-4 w-4 text-amber-600" />
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Tent className="h-3 w-3 text-amber-600" />
                 <span className="text-sm font-medium">Recreational</span>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Selective clearing for trails and gathering areas. Preserve natural character.
               </p>
             </div>
           </div>
         </div>
 
+        {/* Divider */}
+        <div className="border-t" />
+
         {/* Confidence Calibration */}
-        <div className="space-y-3">
+        <div className="space-y-2">
           <h4 className="text-sm font-medium flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-slate-600" />
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
             Confidence Calibration
           </h4>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="text-center p-3 rounded-lg bg-background border">
-              <div className="text-xs text-muted-foreground mb-1">Vegetation</div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Vegetation</div>
               <Badge className={`${getConfidenceBadgeColor(confidence.vegetation)} text-xs`}>
                 {confidence.vegetation}
               </Badge>
             </div>
-            <div className="text-center p-3 rounded-lg bg-background border">
-              <div className="text-xs text-muted-foreground mb-1">Terrain & Drainage</div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Terrain & Drainage</div>
               <Badge className={`${getConfidenceBadgeColor(confidence.terrain)} text-xs`}>
                 {confidence.terrain}
               </Badge>
             </div>
-            <div className="text-center p-3 rounded-lg bg-background border">
-              <div className="text-xs text-muted-foreground mb-1">Cost Estimate</div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Cost Estimate</div>
               <Badge className={`${getConfidenceBadgeColor(confidence.cost)} text-xs`}>
                 {confidence.cost}
               </Badge>
             </div>
-            <div className="text-center p-3 rounded-lg bg-background border">
-              <div className="text-xs text-muted-foreground mb-1">Subsurface Risks</div>
+            <div className="space-y-1">
+              <div className="text-xs text-muted-foreground">Subsurface Risks</div>
               <Badge className={`${getConfidenceBadgeColor(confidence.subsurface)} text-xs`}>
                 {confidence.subsurface}
               </Badge>
@@ -532,31 +541,34 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
           </div>
         </div>
 
+        {/* Divider */}
+        <div className="border-t" />
+
         {/* Spend Discipline */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-4 rounded-lg bg-red-50/50 border border-red-200/50 space-y-2">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-              <span className="text-sm font-medium text-red-800">Before Any Spending</span>
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-medium">Before Any Spending</span>
             </div>
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {beforeSpending.map((action, i) => (
-                <li key={i} className="text-xs text-red-700 flex items-start gap-2">
-                  <span className="flex-shrink-0">•</span>
+                <li key={i} className="text-xs text-muted-foreground flex items-start gap-2 leading-relaxed">
+                  <span className="text-amber-600 flex-shrink-0">•</span>
                   {action}
                 </li>
               ))}
             </ul>
           </div>
-          <div className="p-4 rounded-lg bg-green-50/50 border border-green-200/50 space-y-2">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium text-green-800">Can Wait Until Later</span>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Can Wait Until Later</span>
             </div>
-            <ul className="space-y-1">
+            <ul className="space-y-1.5">
               {canWait.map((action, i) => (
-                <li key={i} className="text-xs text-green-700 flex items-start gap-2">
-                  <span className="flex-shrink-0">•</span>
+                <li key={i} className="text-xs text-muted-foreground flex items-start gap-2 leading-relaxed">
+                  <span className="text-muted-foreground flex-shrink-0">•</span>
                   {action}
                 </li>
               ))}
@@ -564,7 +576,7 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground/70 text-center pt-2">
+        <p className="text-xs text-muted-foreground/70 pt-2">
           Decision summary derived from parcel analysis. Not a guarantee. Verify conditions on-site.
         </p>
       </CardContent>
