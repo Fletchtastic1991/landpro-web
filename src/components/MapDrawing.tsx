@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Loader2, Save, Trash2, Maximize2, Brain, Leaf, Mountain, Wrench, DollarSign, AlertTriangle, Users, ArrowRight, MapPin } from "lucide-react";
 import AnalysisDisclaimer from "@/components/AnalysisDisclaimer";
+import DecisionSummary from "@/components/DecisionSummary";
 
 const MAP_STYLES = {
   satellite: { id: "mapbox://styles/mapbox/satellite-streets-v12", label: "Satellite" },
@@ -860,6 +861,9 @@ export default function MapDrawing({
                 </CardContent>
               </Card>
             )}
+
+            {/* Decision Summary Layer */}
+            <DecisionSummary analysis={analysis} acreage={acreage} />
 
             {/* Informational Disclaimer */}
             <AnalysisDisclaimer />
