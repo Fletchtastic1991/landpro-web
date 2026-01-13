@@ -192,6 +192,44 @@ export type Database = {
           },
         ]
       }
+      memory_records: {
+        Row: {
+          category: Database["public"]["Enums"]["memory_category"]
+          confidence: Database["public"]["Enums"]["memory_confidence"]
+          parcel_id: string
+          record_id: string
+          source: string
+          timestamp: string
+          value: Json | null
+        }
+        Insert: {
+          category: Database["public"]["Enums"]["memory_category"]
+          confidence: Database["public"]["Enums"]["memory_confidence"]
+          parcel_id: string
+          record_id?: string
+          source: string
+          timestamp?: string
+          value?: Json | null
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["memory_category"]
+          confidence?: Database["public"]["Enums"]["memory_confidence"]
+          parcel_id?: string
+          record_id?: string
+          source?: string
+          timestamp?: string
+          value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memory_records_parcel_id_fkey"
+            columns: ["parcel_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           created_at: string
@@ -226,6 +264,41 @@ export type Database = {
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parcel_state_objects: {
+        Row: {
+          created_at: string
+          derived_state: Json | null
+          id: string
+          last_updated: string
+          linked_reports: Json | null
+          parcel_id: string
+        }
+        Insert: {
+          created_at?: string
+          derived_state?: Json | null
+          id?: string
+          last_updated?: string
+          linked_reports?: Json | null
+          parcel_id: string
+        }
+        Update: {
+          created_at?: string
+          derived_state?: Json | null
+          id?: string
+          last_updated?: string
+          linked_reports?: Json | null
+          parcel_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parcel_state_objects_parcel_id_fkey"
+            columns: ["parcel_id"]
+            isOneToOne: true
+            referencedRelation: "projects"
             referencedColumns: ["id"]
           },
         ]
@@ -371,6 +444,50 @@ export type Database = {
           },
         ]
       }
+      reality_events: {
+        Row: {
+          confidence_level: Database["public"]["Enums"]["memory_confidence"]
+          description: string
+          event_id: string
+          event_type: string
+          location: Json | null
+          parcel_state_id: string
+          source: Database["public"]["Enums"]["reality_event_source"]
+          timestamp: string
+          verification_status: Database["public"]["Enums"]["verification_status"]
+        }
+        Insert: {
+          confidence_level?: Database["public"]["Enums"]["memory_confidence"]
+          description: string
+          event_id?: string
+          event_type: string
+          location?: Json | null
+          parcel_state_id: string
+          source: Database["public"]["Enums"]["reality_event_source"]
+          timestamp?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Update: {
+          confidence_level?: Database["public"]["Enums"]["memory_confidence"]
+          description?: string
+          event_id?: string
+          event_type?: string
+          location?: Json | null
+          parcel_state_id?: string
+          source?: Database["public"]["Enums"]["reality_event_source"]
+          timestamp?: string
+          verification_status?: Database["public"]["Enums"]["verification_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reality_events_parcel_state_id_fkey"
+            columns: ["parcel_state_id"]
+            isOneToOne: false
+            referencedRelation: "parcel_state_objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -441,6 +558,18 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      memory_category:
+        | "geometry"
+        | "topography"
+        | "surface"
+        | "access"
+        | "restriction"
+        | "infrastructure"
+        | "observation"
+        | "metadata"
+      memory_confidence: "High" | "Medium" | "Low"
+      reality_event_source: "user" | "system" | "pro" | "sensor"
+      verification_status: "unverified" | "verified"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -569,6 +698,19 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      memory_category: [
+        "geometry",
+        "topography",
+        "surface",
+        "access",
+        "restriction",
+        "infrastructure",
+        "observation",
+        "metadata",
+      ],
+      memory_confidence: ["High", "Medium", "Low"],
+      reality_event_source: ["user", "system", "pro", "sensor"],
+      verification_status: ["unverified", "verified"],
     },
   },
 } as const

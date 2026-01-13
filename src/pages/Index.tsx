@@ -26,7 +26,7 @@ const Index = () => {
               Contact
             </a>
             <Button 
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate("/dashboard/map")}
               variant="outline"
               className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
             >
@@ -44,26 +44,33 @@ const Index = () => {
         <div className="container mx-auto px-6 relative z-10">
           <div className="max-w-4xl mx-auto text-center animate-fade-in">
             <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-foreground via-primary to-foreground">
-              Empowering the Future of Land Management with AI
+              Understand Your Land in Under 2 Minutes
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-12 max-w-3xl mx-auto">
-              LandPro AI delivers precision, efficiency, and insight through cutting-edge artificial intelligence
+            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
+              Whether you're clearing brush, planning a build, or pricing a job — draw a boundary and get instant AI analysis with equipment needs, cost estimates, and clear next steps.
+            </p>
+            <p className="text-lg text-muted-foreground/80 mb-12">
+              Built for landowners, contractors, and farmers who need answers fast.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
                 size="lg"
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate("/dashboard/map")}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 py-6 shadow-[0_0_30px_hsl(140_60%_45%/0.3)] hover:shadow-[0_0_50px_hsl(140_60%_45%/0.5)] transition-all"
               >
-                Get Started
+                Analyze Your Land Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button 
                 size="lg"
                 variant="outline"
+                onClick={() => {
+                  const el = document.getElementById('about');
+                  el?.scrollIntoView({ behavior: 'smooth' });
+                }}
                 className="border-border text-foreground text-lg px-8 py-6 hover:bg-muted"
               >
-                Request a Demo
+                See How It Works
               </Button>
             </div>
           </div>
@@ -76,12 +83,12 @@ const Index = () => {
           <div className="grid md:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
             <div className="animate-fade-in">
               <h2 className="text-4xl md:text-5xl font-bold mb-6">
-                AI-Powered Solutions for Smarter Land Operations
+                From Confusion to Clarity — Instantly
               </h2>
               <p className="text-lg text-muted-foreground leading-relaxed">
-                LandPro AI harnesses machine learning and geospatial analytics to streamline land assessment, 
-                automate reporting, and enhance decision-making. Our cutting-edge platform transforms complex 
-                data into actionable intelligence.
+                Draw a boundary, get answers. LandPro AI analyzes any parcel and delivers clear, actionable 
+                insights: vegetation density, terrain conditions, equipment needs, cost estimates, and next steps. 
+                No guesswork. No delays. Just the information you need to move forward.
               </p>
             </div>
             <div className="relative">
@@ -89,16 +96,16 @@ const Index = () => {
               <div className="relative bg-card border border-border rounded-lg p-8 backdrop-blur-sm">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-primary mb-2">40%</div>
-                    <div className="text-sm text-muted-foreground">Cost Reduction</div>
+                    <div className="text-4xl font-bold text-primary mb-2">&lt;2min</div>
+                    <div className="text-sm text-muted-foreground">Time to Insights</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-primary mb-2">10x</div>
-                    <div className="text-sm text-muted-foreground">Faster Analysis</div>
+                    <div className="text-4xl font-bold text-primary mb-2">1-Click</div>
+                    <div className="text-sm text-muted-foreground">Analysis Start</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-4xl font-bold text-primary mb-2">99%</div>
-                    <div className="text-sm text-muted-foreground">Accuracy Rate</div>
+                    <div className="text-4xl font-bold text-primary mb-2">100%</div>
+                    <div className="text-sm text-muted-foreground">Actionable Output</div>
                   </div>
                   <div className="text-center">
                     <div className="text-4xl font-bold text-primary mb-2">24/7</div>
@@ -116,10 +123,10 @@ const Index = () => {
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold mb-4">
-              Core AI Capabilities
+              Everything You Need to Take Action
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Enterprise-grade intelligence for modern land management
+              From analysis to execution — all in one platform
             </p>
           </div>
 
@@ -127,27 +134,13 @@ const Index = () => {
             <Card className="bg-card border-border hover:border-primary/50 transition-all group">
               <CardHeader>
                 <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-                  <TrendingUp className="w-7 h-7 text-primary" />
-                </div>
-                <CardTitle className="text-xl">Predictive Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <CardDescription className="text-base">
-                  Forecast land trends and optimize resource allocation with advanced machine learning models
-                </CardDescription>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border hover:border-primary/50 transition-all group">
-              <CardHeader>
-                <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                   <Map className="w-7 h-7 text-primary" />
                 </div>
-                <CardTitle className="text-xl">Geospatial Intelligence</CardTitle>
+                <CardTitle className="text-xl">Draw & Analyze</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
-                  Process satellite imagery and terrain data for comprehensive spatial analysis
+                  Draw a boundary on any parcel and get instant AI-powered analysis of terrain, vegetation, and conditions
                 </CardDescription>
               </CardContent>
             </Card>
@@ -157,11 +150,25 @@ const Index = () => {
                 <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                   <Brain className="w-7 h-7 text-primary" />
                 </div>
-                <CardTitle className="text-xl">Automated Land Insights</CardTitle>
+                <CardTitle className="text-xl">Smart Recommendations</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
-                  Generate detailed reports and recommendations automatically from raw data
+                  Get clear next steps: equipment needs, labor estimates, cost breakdowns, and hazard warnings
+                </CardDescription>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border hover:border-primary/50 transition-all group">
+              <CardHeader>
+                <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                  <TrendingUp className="w-7 h-7 text-primary" />
+                </div>
+                <CardTitle className="text-xl">Instant Quotes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-base">
+                  Generate professional quotes in seconds with AI-calculated labor, materials, and equipment costs
                 </CardDescription>
               </CardContent>
             </Card>
@@ -171,11 +178,11 @@ const Index = () => {
                 <div className="w-14 h-14 rounded-lg bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
                   <Leaf className="w-7 h-7 text-primary" />
                 </div>
-                <CardTitle className="text-xl">Sustainability Tracking</CardTitle>
+                <CardTitle className="text-xl">Project Tracking</CardTitle>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-base">
-                  Monitor environmental impact and ensure compliance with ESG standards
+                  Save analyses as projects, track jobs, manage clients, and keep everything organized in one place
                 </CardDescription>
               </CardContent>
             </Card>
@@ -188,7 +195,7 @@ const Index = () => {
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-4xl md:text-5xl font-bold text-center mb-16">
-              Transform Your Operations
+              Why Landowners Choose LandPro AI
             </h2>
             
             <div className="space-y-8">
@@ -197,9 +204,9 @@ const Index = () => {
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold mb-2">Reduce operational costs by 40%</h3>
+                  <h3 className="text-2xl font-bold mb-2">Stop guessing, start knowing</h3>
                   <p className="text-muted-foreground text-lg">
-                    Eliminate manual processes and optimize resource utilization with intelligent automation
+                    Get accurate land assessments backed by AI analysis — vegetation, terrain, hazards, and costs in one view
                   </p>
                 </div>
               </div>
@@ -209,9 +216,9 @@ const Index = () => {
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold mb-2">Make data-driven decisions instantly</h3>
+                  <h3 className="text-2xl font-bold mb-2">Know your next step immediately</h3>
                   <p className="text-muted-foreground text-lg">
-                    Access real-time insights and recommendations powered by advanced AI algorithms
+                    Every analysis includes clear recommendations: what equipment you need, how long it'll take, and what it'll cost
                   </p>
                 </div>
               </div>
@@ -221,9 +228,9 @@ const Index = () => {
                   <CheckCircle2 className="w-6 h-6 text-primary" />
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold mb-2">Stay ahead with adaptive AI models</h3>
+                  <h3 className="text-2xl font-bold mb-2">Move from idea to action in minutes</h3>
                   <p className="text-muted-foreground text-lg">
-                    Continuously learning systems that evolve with your business needs and industry changes
+                    Whether you're clearing, developing, or maintaining — get the insights you need to start today, not next week
                   </p>
                 </div>
               </div>
@@ -240,17 +247,17 @@ const Index = () => {
         <div className="container mx-auto px-6 relative z-10">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-4xl md:text-5xl font-bold mb-6">
-              Ready to transform your land operations with AI?
+              Ready to see what your land can do?
             </h2>
             <p className="text-xl text-muted-foreground mb-10">
-              Join leading organizations leveraging artificial intelligence for smarter land management
+              Landowners, contractors, and farmers are already saving hours on every job. Start your first analysis free.
             </p>
             <Button 
               size="lg"
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate("/dashboard/map")}
               className="bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-10 py-6 shadow-[0_0_30px_hsl(140_60%_45%/0.3)] hover:shadow-[0_0_50px_hsl(140_60%_45%/0.5)] transition-all"
             >
-              Get Started Free
+              Start Your Free Analysis
               <ArrowRight className="ml-2 h-5 w-5" />
             </Button>
           </div>

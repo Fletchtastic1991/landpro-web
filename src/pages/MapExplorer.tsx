@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import MemoryInspector from "@/components/MemoryInspector";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Map, Loader2 } from "lucide-react";
+import { Loader2, Bug } from "lucide-react";
 import MapDrawing from "@/components/MapDrawing";
+import { LandIntent, INTENT_OPTIONS } from "@/components/IntentSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -16,6 +18,7 @@ interface ProjectData {
   boundary: GeoJSON.Polygon;
   acreage: number;
   analysis?: any;
+  intent?: LandIntent;
 }
 
 export default function MapExplorer() {
@@ -26,10 +29,30 @@ export default function MapExplorer() {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  // Intent is kept for internal logic but not exposed in UI
+  const [selectedIntent] = useState<LandIntent | null>("evaluate");
+  const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
+  const [showDevTools, setShowDevTools] = useState(false);
+
+  // DEV TOOLS: Only accessible via Ctrl+Shift+D keyboard shortcut
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    if (event.ctrlKey && event.shiftKey && event.key === 'D') {
+      event.preventDefault();
+      setShowDevTools(prev => !prev);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const handleCreateProject = (boundary: GeoJSON.Polygon, acreage: number, analysis?: any) => {
-    setProjectData({ boundary, acreage, analysis });
-    setProjectName(`Land Project - ${acreage} acres`);
+    const intentLabel = selectedIntent 
+      ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label 
+      : "";
+    setProjectData({ boundary, acreage, analysis, intent: selectedIntent || undefined });
+    setProjectName(`${intentLabel ? `${intentLabel} - ` : ""}${acreage} acres`);
     setProjectDescription(analysis?.summary || "");
     setShowCreateDialog(true);
   };
@@ -72,6 +95,7 @@ export default function MapExplorer() {
             land_classification: {
               vegetation: projectData.analysis.vegetation,
               terrain: projectData.analysis.terrain,
+              intent: projectData.intent,
             },
             hazards: projectData.analysis.hazards,
             path: {
@@ -83,7 +107,6 @@ export default function MapExplorer() {
 
         if (analysisError) {
           console.error('Failed to save analysis:', analysisError);
-          // Don't fail the whole operation if analysis save fails
         }
       }
 
@@ -99,41 +122,47 @@ export default function MapExplorer() {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <div>
-        <h1 className="text-3xl font-bold">Map Explorer</h1>
-        <p className="text-muted-foreground">
-          Search locations and explore properties before creating a project
+    <div className="space-y-8 animate-fade-in max-w-7xl mx-auto">
+      {/* Hero Header */}
+      <div className="text-center space-y-3 pb-2">
+        <h1 className="text-4xl font-bold tracking-tight">Analyze Your Land</h1>
+        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          Find your property and get AI-powered insights in under 2 minutes.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Map className="h-5 w-5" />
-            Interactive Map
-          </CardTitle>
-          <CardDescription>
-            Search for addresses, draw boundaries to calculate acreage, run AI analysis, then create a project from your selection.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="h-[600px] rounded-lg overflow-hidden">
+      {/* Map and Analysis */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
+            1
+          </span>
+          <div>
+            <h2 className="text-xl font-semibold">Find your property</h2>
+            <p className="text-sm text-muted-foreground">
+              Search for an address, then draw your boundary. Analysis starts automatically.
+            </p>
+          </div>
+        </div>
+        <Card className="border-2 overflow-visible">
+          <CardContent className="p-0">
             <MapDrawing 
               readOnly={false} 
               onCreateProject={handleCreateProject}
+              intent={selectedIntent}
+              autoAnalyze={true}
             />
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
 
       {/* Create Project Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Project</DialogTitle>
+            <DialogTitle>Save This Analysis</DialogTitle>
             <DialogDescription>
-              Save your selected land boundary as a new project. 
+              Save your analysis for future reference. 
               {projectData?.acreage && ` Area: ${projectData.acreage} acres`}
             </DialogDescription>
           </DialogHeader>
@@ -148,20 +177,20 @@ export default function MapExplorer() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description (optional)</Label>
+              <Label htmlFor="description">Notes (optional)</Label>
               <Textarea
                 id="description"
                 value={projectDescription}
                 onChange={(e) => setProjectDescription(e.target.value)}
-                placeholder="Enter project description"
+                placeholder="Add any notes about this property"
                 rows={3}
               />
             </div>
             {projectData?.analysis && (
-              <div className="p-3 bg-muted rounded-lg text-sm">
-                <span className="font-medium">AI Analysis included:</span>
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
+                <span className="font-medium text-primary">Analysis included</span>
                 <span className="text-muted-foreground ml-2">
-                  Vegetation, terrain, equipment recommendations, and cost estimates will be saved with this project.
+                  — vegetation, terrain, equipment, and cost estimates
                 </span>
               </div>
             )}
@@ -172,11 +201,25 @@ export default function MapExplorer() {
             </Button>
             <Button onClick={handleSubmitProject} disabled={isCreating}>
               {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Create Project
+              Save Project
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* DEV TOOLS - Hidden by default, toggle with Ctrl+Shift+D */}
+      {showDevTools && (
+        <>
+          <button
+            onClick={() => setShowDevTools(false)}
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-semibold shadow-lg border bg-amber-500 text-black border-amber-600 hover:bg-amber-400 transition-colors"
+          >
+            <Bug className="h-4 w-4" />
+            DEV TOOLS (Ctrl+Shift+D to hide)
+          </button>
+          <MemoryInspector parcelId={debugParcelId} />
+        </>
+      )}
     </div>
   );
 }

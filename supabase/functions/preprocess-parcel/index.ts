@@ -13,14 +13,44 @@ serve(async (req) => {
   }
 
   try {
+    // Validate JWT token for authentication
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Create client with user's auth context for validation
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    // Validate the JWT and get authenticated user
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Use validated user ID from JWT, not from request body
+    const user_id = claimsData.claims.sub;
+
+    // Create service role client for database operations that need elevated privileges
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { user_id, parcel_geometry, lat, lng, property_goal } = await req.json();
+    const { parcel_geometry, lat, lng, property_goal } = await req.json();
 
-    console.log("Processing parcel for user:", user_id);
+    // Log operation start without PII
 
     // ---- AUTO PROPERTY CLASSIFICATION ----
     const property_type = detectPropertyType(parcel_geometry);
@@ -59,8 +89,9 @@ serve(async (req) => {
       });
 
     if (uploadError) {
-      console.error("Upload error:", uploadError);
-      throw new Error(`Failed to upload preprocessed data: ${uploadError.message}`);
+      // Log generic error without exposing internal details
+      console.error("Upload failed");
+      throw new Error("Failed to upload preprocessed data");
     }
 
     // Create analysis job row
@@ -75,20 +106,21 @@ serve(async (req) => {
       .single();
 
     if (jobError) {
-      console.error("Job creation error:", jobError);
-      throw new Error(`Failed to create analysis job: ${jobError.message}`);
+      // Log generic error without exposing internal details
+      console.error("Job creation failed");
+      throw new Error("Failed to create analysis job");
     }
 
-    console.log("Created analysis job:", job.id);
+    // Log success without exposing IDs
 
     return new Response(JSON.stringify({ job_id: job.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
   } catch (err) {
-    console.error("Preprocess parcel error:", err);
-    const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    // Log generic error for operational monitoring
+    console.error("Preprocess parcel failed");
+    return new Response(JSON.stringify({ error: "Processing failed" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

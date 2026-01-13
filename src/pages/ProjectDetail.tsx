@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { ArrowLeft, Loader2, MapPin, FileText, AlertTriangle, Map, Leaf, Mountain, Wrench, DollarSign, Users, Brain, RefreshCw, Cog } from "lucide-react";
 import { format } from "date-fns";
 import MapDrawing from "@/components/MapDrawing";
+import AnalysisDisclaimer from "@/components/AnalysisDisclaimer";
 import type { Json } from "@/integrations/supabase/types";
 interface Project {
   id: string;
@@ -87,24 +88,25 @@ function AnalysisDisplay({ analysis, createdAt }: { analysis: LandAnalysis; crea
   const hazards = analysis?.hazards;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Summary Header */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Brain className="h-5 w-5 text-primary" />
-            AI Land Analysis
+            Land Clearing Assessment
           </CardTitle>
           <CardDescription>
             Generated on {format(new Date(createdAt), "MMMM d, yyyy 'at' h:mm a")}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-2">
           <p className="text-muted-foreground">{analysis?.summary || "No summary available"}</p>
+          <p className="text-xs text-muted-foreground/70">Analysis is based on mapped boundaries and available data.</p>
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2">
         {/* Vegetation */}
         {vegetation && (
           <Card>
@@ -193,6 +195,7 @@ function AnalysisDisplay({ analysis, createdAt }: { analysis: LandAnalysis; crea
                   ))}
                 </div>
               )}
+              <p className="text-xs text-muted-foreground/70">Common equipment examples. Contractors may use different methods or equipment.</p>
               {equipment.considerations && equipment.considerations.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground mb-2">Considerations</h4>
@@ -268,6 +271,7 @@ function AnalysisDisplay({ analysis, createdAt }: { analysis: LandAnalysis; crea
                   </span>
                 </div>
               )}
+              <p className="text-xs text-muted-foreground/70">Actual costs vary by contractor, access, and disposal method.</p>
               {costFactors.factors_affecting_cost && costFactors.factors_affecting_cost.length > 0 && (
                 <div>
                   <h4 className="text-sm font-medium text-muted-foreground mb-2">Factors Affecting Cost</h4>
@@ -287,9 +291,9 @@ function AnalysisDisplay({ analysis, createdAt }: { analysis: LandAnalysis; crea
 
         {/* Hazards */}
         {hazards && hazards.length > 0 && (
-          <Card className="border-destructive/30 md:col-span-2">
+          <Card className="border-amber-500/30 bg-amber-500/5 md:col-span-2">
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2 text-destructive">
+              <CardTitle className="text-base flex items-center gap-2 text-amber-700">
                 <AlertTriangle className="h-5 w-5" />
                 Potential Hazards
               </CardTitle>
@@ -297,9 +301,9 @@ function AnalysisDisplay({ analysis, createdAt }: { analysis: LandAnalysis; crea
             <CardContent>
               <div className="grid gap-2 sm:grid-cols-2">
                 {hazards.map((hazard, i) => (
-                  <div key={i} className="flex items-start gap-2 bg-destructive/5 p-3 rounded-lg">
-                    <span className="text-destructive">⚠</span>
-                    <span className="text-sm">{hazard}</span>
+                  <div key={i} className="flex items-start gap-2 bg-amber-500/5 p-3 rounded-lg border border-amber-500/20">
+                    <span className="text-amber-600">•</span>
+                    <span className="text-sm text-muted-foreground">{hazard}</span>
                   </div>
                 ))}
               </div>
@@ -307,6 +311,9 @@ function AnalysisDisplay({ analysis, createdAt }: { analysis: LandAnalysis; crea
           </Card>
         )}
       </div>
+
+      {/* Informational Disclaimer */}
+      <AnalysisDisclaimer />
     </div>
   );
 }

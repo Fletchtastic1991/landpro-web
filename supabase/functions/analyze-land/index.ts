@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { boundary, acreage, location } = await req.json();
+    const { boundary, acreage, location, intent } = await req.json();
     
     if (!boundary || !acreage) {
       return new Response(
@@ -35,49 +35,263 @@ serve(async (req) => {
       [0, 0]
     ).map((v: number) => v / coordinates.length);
 
-    const prompt = `You are an AI land analysis expert for landscaping professionals. Analyze this land parcel and provide detailed recommendations.
+    // Intent-specific analysis focus
+    const intentContext: Record<string, string> = {
+      build: `The landowner wants to BUILD on this land. Focus your analysis on:
+- Site preparation requirements (clearing, grading, leveling)
+- Soil stability and foundation considerations
+- Access roads and utility routing
+- Drainage and water management for construction
+- Permitting considerations based on terrain
+- Cost estimates for site prep before construction`,
+      
+      clear: `The landowner wants to CLEAR this land. Focus your analysis on:
+- Vegetation removal requirements (trees, brush, stumps)
+- Equipment needed for efficient clearing
+- Debris disposal and burn pile considerations
+- Erosion control after clearing
+- Timeline and crew requirements
+- Cost estimates for complete land clearing`,
+      
+      farm: `The landowner wants to FARM this land. Focus your analysis on:
+- Soil quality and composition estimates
+- Drainage and irrigation needs
+- Terrain suitability for crops or livestock
+- Land preparation for agricultural use
+- Seasonal considerations
+- Cost estimates for agricultural preparation`,
+      
+      evaluate: `The landowner wants to EVALUATE this land for general assessment. Focus your analysis on:
+- Overall land characteristics and potential uses
+- Property strengths and challenges
+- Comparative value factors
+- Development potential
+- Maintenance considerations
+- General cost estimates for various improvements`
+    };
 
-Land Details:
-- Area: ${acreage} acres (${(acreage * 4046.86).toFixed(0)} square meters)
+    const intentFocus = intent && intentContext[intent] 
+      ? intentContext[intent] 
+      : intentContext['evaluate'];
+
+const prompt = `You are the LandPro Brain — a deterministic land clearing assessment system. You produce stable, invariant-compliant analysis that a landowner can act on with confidence.
+
+=== SYSTEM INVARIANTS (VIOLATION = SYSTEM ERROR) ===
+
+INVARIANT 1: DEVELOPMENT CLASSIFICATION LOCK
+- Initial parcel development classification (Raw / Partially Developed / Developed) is inferred ONLY from:
+  • Parcel boundary geometry
+  • Mapped features within the boundary
+  • Surrounding development context visible on the map
+- Once inferred for a given parcel boundary, this classification is LOCKED
+- Re-running analysis MUST NOT change development classification unless:
+  • The parcel boundary geometry changes, OR
+  • A user-declared decision explicitly alters development state (recorded in Memory Core)
+- Classification is deterministic: same boundary + same context = same classification ALWAYS
+
+INVARIANT 2: ANALYSIS VS DECISION SEPARATION
+- Analysis describes observed or inferred conditions based on available data
+- Decision State reflects ONLY user-declared actions or confirmations
+- The system MUST NOT elevate analysis conclusions into decisions
+- PROHIBITED decision-state terms (unless supported by explicit decision memory):
+  • "Build-Ready"
+  • "Clearing Complete"
+  • "Development Ready"
+  • "Approved for construction"
+  • "Ready to build"
+- Instead, use conditional language such as:
+  • "Potentially buildable pending verification"
+  • "Not build-ready (decision incomplete)"
+  • "Conditional readiness — requires [specific verification]"
+
+INVARIANT 3: CONDITIONAL READINESS ENFORCEMENT
+- If ANY of the following are missing, uncertain, or unverified:
+  • Required surveys (boundary, topographic, environmental)
+  • Permits (clearing, grading, construction)
+  • Inspections (soil, drainage, utility)
+  • Subsurface confirmations (soil composition, underground utilities, water table)
+- THEN the parcel MUST NOT be labeled "Build-Ready" or equivalent
+- Confidence summaries MUST reflect uncertainty and missing prerequisites
+- Output must include explicit list of unmet prerequisites
+
+INVARIANT 4: RERUN STABILITY GUARANTEE
+- Re-running analysis for the same parcel boundary and memory state MUST produce:
+  • Identical classification (development status)
+  • Identical risk labels
+  • Stable high-level conclusions
+  • Consistent numeric estimates (within rounding tolerance)
+- New phrasing or refinement in commentary is allowed
+- New assumptions, escalations, or state changes are NOT allowed without a triggering input
+- This is a STABILITY CONSTRAINT, not a logic expansion
+
+INVARIANT 5: AUTHORITY HIERARCHY
+- Map data establishes the observational baseline (what is seen)
+- Memory Core establishes decision truth (what user has confirmed)
+- Analysis synthesizes but NEVER overrides either
+- If map data and analysis conflict: defer to map data
+- If user decision and analysis conflict: defer to user decision
+- Analysis is READ-ONLY: it cannot write facts or modify existing data
+
+=== SYSTEM RULES (NON-NEGOTIABLE) ===
+
+1. PROHIBITED LANGUAGE:
+   - NEVER use: likely, probably, appears, may, suggests, could, might, possibly, seemingly, presumably
+   - If uncertainty exists, state: "Cannot determine — data unavailable" or "Data insufficient for classification"
+   - All statements must reference ONLY verified inputs or user-provided data
+
+2. MISSING DATA HANDLING:
+   - If required data is missing or unverifiable, output: "Analysis blocked — required data missing: [list items]"
+   - Do NOT guess, estimate, or infer missing values
+   - Sections dependent on missing data must state: "Blocked — upstream data unavailable"
+
+3. DETERMINISM & STABILITY:
+   - Given identical boundary geometry and inputs, produce IDENTICAL classifications
+   - Development status (Raw / Partially Developed / Developed) is locked once assigned for a boundary
+   - Classifications, risk labels, and numeric estimates must NOT vary across reruns with same inputs
+   - Commentary may have minor wording variations but MUST NOT change classifications or estimates
+
+4. CLASSIFICATION RULES:
+   - Development status is determined ONLY by: lot size, address type, and location context
+   - Risk labels derive ONLY from terrain, vegetation density, and access constraints
+   - No classification may be upgraded or downgraded based on commentary interpretation
+
+5. LANDPRO OS INVARIANTS (ENFORCED):
+   - No Guessing: Never fabricate facts or boundaries
+   - Source Transparency: Every output states its origin
+   - User-Owned Geometry: Boundaries belong to the user; system cannot modify
+   - Failure Must Be Visible: Missing data = blocked output, never silent failure
+   - Actionable Output Only: Every output must be something a person can act on
+   - Conservative Framing: When uncertain, classify conservatively (higher risk, wider ranges)
+   - Human Decision Primacy: User remains sole decision-maker; system advises only
+   - Explicit Uncertainty Disclosure: All unknowns are stated plainly
+   - Read-Only AI Reasoning: Analysis layer cannot write new facts or modify existing data
+
+=== INPUT DATA ===
+
+THEIR GOAL: ${intentFocus}
+
+THE PROPERTY:
+- Size: ${acreage} acres${acreage < 1 ? ` (about ${Math.round(acreage * 43560)} square feet)` : ''}
 - Location coordinates: ${centroid[1].toFixed(4)}°N, ${Math.abs(centroid[0]).toFixed(4)}°W
-- Polygon vertices: ${coordinates.length - 1} points
-${location ? `- Address/Location: ${location}` : ''}
+${location ? `- Address: ${location}` : '- Address: Not provided'}
+- Boundary: User-provided polygon (${boundary.coordinates[0].length} vertices)
 
-Based on typical land characteristics for this region and size, provide a comprehensive analysis in the following JSON format:
+=== COST ESTIMATION RULES ===
+
+1. EXISTING DEVELOPMENT CHECK:
+   - Lot < 1 acre with street address: Classify as "developed" or "partially_developed"
+   - Lot < 1 acre without address: Classify as "partially_developed" if suburban context, otherwise "undeveloped"
+   - Lot >= 1 acre: Evaluate based on address and location context
+
+2. COST ADJUSTMENT (DETERMINISTIC):
+   - Developed lots: Reduce baseline by 70% (fixed)
+   - Partially developed lots: Reduce baseline by 40% (fixed)
+   - Undeveloped lots: Use full baseline
+
+3. SANITY CONSTRAINTS:
+   - Developed lot < 0.5 acre: Max total estimate $3,000
+   - Developed lot 0.5-1 acre: Max total estimate $5,000
+   - If constraints conflict with estimates, output lower value and note constraint
+
+=== OUTPUT FORMAT (EXACT STRUCTURE — DO NOT MODIFY) ===
+
+Return ONLY valid JSON with this exact structure:
 
 {
+  "data_validation": {
+    "boundary_provided": true/false,
+    "acreage_provided": true/false,
+    "location_provided": true/false,
+    "required_data_missing": [] // list any missing required fields
+  },
   "vegetation": {
-    "type": "string describing likely vegetation type (e.g., mixed grass, wooded, brush)",
-    "density": "low/medium/high",
-    "recommendations": ["array of vegetation management recommendations"]
+    "type": "factual description based on location and typical regional vegetation",
+    "density": "light/moderate/heavy",
+    "confidence": "high/medium/low",
+    "data_source": "regional inference from coordinates",
+    "recommendations": ["2-3 actions — no hedging language"]
   },
   "terrain": {
-    "type": "string describing likely terrain (e.g., flat, rolling hills, steep)",
-    "slope_estimate": "percentage range estimate",
-    "drainage": "good/moderate/poor",
-    "recommendations": ["array of terrain-related recommendations"]
+    "type": "flat/gentle slope/hilly/steep",
+    "slope_estimate": "percentage or 'cannot determine'",
+    "drainage": "good/adequate/poor/cannot determine",
+    "confidence": "high/medium/low",
+    "data_source": "topographic inference from coordinates",
+    "recommendations": ["2-3 terrain-specific actions"]
+  },
+  "existing_development": {
+    "status": "undeveloped/partially_developed/developed",
+    "classification_locked": true,
+    "classification_source": "map_observation/boundary_geometry/context_inference",
+    "confidence": "high/medium/low",
+    "indicators": ["factual observations only — no hedging"],
+    "infrastructure_present": ["list verified or strongly indicated infrastructure"]
+  },
+  "readiness_assessment": {
+    "status": "not_assessed/conditional/blocked",
+    "is_build_ready": false,
+    "unmet_prerequisites": [
+      "boundary survey",
+      "topographic survey",
+      "environmental assessment",
+      "grading permit",
+      "soil test",
+      "utility confirmation"
+    ],
+    "conditional_statement": "Potentially buildable pending verification of [list items]",
+    "decision_memory_required": true,
+    "note": "Build-Ready status requires explicit user decisions recorded in Memory Core"
   },
   "equipment": {
-    "recommended": ["array of recommended equipment types"],
-    "considerations": ["array of equipment considerations based on terrain/vegetation"]
+    "recommended": ["equipment list scaled to development status"],
+    "considerations": ["constraints or special requirements"]
   },
   "labor": {
     "estimated_crew_size": number,
     "estimated_hours": number,
-    "difficulty": "easy/moderate/challenging"
+    "difficulty": "straightforward/moderate/challenging",
+    "confidence": "high/medium/low"
   },
-  "hazards": ["array of potential hazards to watch for"],
+  "hazards": ["specific, actionable hazard statements — no probabilistic language"],
   "cost_factors": {
+    "development_adjustment": "none/partial/significant",
+    "adjustment_percentage": number,
     "base_rate_per_acre": number,
     "estimated_total": number,
-    "factors_affecting_cost": ["array of cost factors"]
+    "cost_range_low": number,
+    "cost_range_high": number,
+    "factors_affecting_cost": ["deterministic cost factors"],
+    "sanity_check_applied": true/false,
+    "sanity_check_note": "explanation if constraints were applied"
   },
-  "summary": "2-3 sentence summary of the analysis"
+  "next_steps": ["3-5 spatial-aware next steps — describe WHERE on the property and WHY. Use factual, experienced language. No 'AI recommends' or probabilistic phrasing."],
+  "summary": "2-3 sentences: what this land is, what the primary constraint is, what action to take first. Direct and factual.",
+  "analysis_metadata": {
+    "determinism_version": "2.0",
+    "invariants_enforced": ["classification_lock", "analysis_decision_separation", "conditional_readiness", "rerun_stability", "authority_hierarchy"],
+    "rerun_stable": true,
+    "authority_hierarchy": {
+      "observational_baseline": "map_data",
+      "decision_truth": "memory_core",
+      "synthesis_layer": "analysis_read_only"
+    }
+  }
 }
 
-Provide realistic estimates based on the acreage and typical conditions. Be specific and actionable in recommendations.`;
+=== CRITICAL REMINDERS (INVARIANT ENFORCEMENT) ===
 
-    console.log('Calling Lovable AI for land analysis...');
+1. If you cannot determine a value, say so explicitly — never guess
+2. All classifications are FINAL for this boundary geometry (INVARIANT 1)
+3. A small lot with an address is NOT raw land
+4. Output must pass a real-world sanity check
+5. User is the decision-maker; you are the advisor
+6. NEVER use "Build-Ready" without explicit decision memory (INVARIANT 2)
+7. Always list unmet prerequisites in readiness_assessment (INVARIANT 3)
+8. Same inputs = same outputs, always (INVARIANT 4)
+9. Map data > Analysis interpretation; User decisions > Analysis conclusions (INVARIANT 5)
+10. Violations of these invariants constitute a SYSTEM ERROR`;
+
+    // Starting land analysis
     
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -88,15 +302,33 @@ Provide realistic estimates based on the acreage and typical conditions. Be spec
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'You are an expert land analysis AI for landscaping professionals. Always respond with valid JSON only, no markdown or extra text.' },
+          { 
+            role: 'system', 
+            content: `You are the LandPro Brain — a deterministic land clearing assessment system. You produce stable, invariant-compliant JSON output.
+
+SYSTEM INVARIANTS (VIOLATION = SYSTEM ERROR):
+1. CLASSIFICATION LOCK: Development status is locked once inferred for a boundary. Same geometry = same classification.
+2. ANALYSIS vs DECISION: Never use decision-state terms (Build-Ready, Clearing Complete) without explicit user decision memory.
+3. CONDITIONAL READINESS: If surveys/permits/inspections are missing, status is "conditional" not "ready".
+4. RERUN STABILITY: Same inputs = identical classifications, risk labels, and estimates.
+5. AUTHORITY HIERARCHY: Map data > Analysis; User decisions > Analysis conclusions.
+
+RULES:
+- Never use probabilistic language (likely, probably, may, suggests, appears)
+- If data is missing, state explicitly
+- Classifications are locked once assigned
+- Return ONLY valid JSON
+- All outputs must be actionable and factual
+- Analysis is READ-ONLY: cannot write facts or modify existing data` 
+          },
           { role: 'user', content: prompt }
         ],
       }),
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      // Log generic AI error without exposing details
+      console.error('AI gateway request failed');
       
       if (response.status === 429) {
         return new Response(
@@ -121,7 +353,7 @@ Provide realistic estimates based on the acreage and typical conditions. Be spec
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
-      console.error('No content in AI response:', data);
+      // Log generic error without exposing AI response
       return new Response(
         JSON.stringify({ error: 'Invalid AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -131,17 +363,32 @@ Provide realistic estimates based on the acreage and typical conditions. Be spec
     // Parse the JSON response, handling potential markdown code blocks
     let analysis;
     try {
-      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      // Remove markdown code blocks (```json, ```, etc.)
+      let cleanedContent = content
+        .replace(/^```(?:json)?\s*/i, '')  // Remove opening code block
+        .replace(/\s*```$/i, '')            // Remove closing code block
+        .trim();
+      
+      // If still wrapped in backticks, try extracting JSON between them
+      const jsonMatch = cleanedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+      if (jsonMatch) {
+        cleanedContent = jsonMatch[1].trim();
+      }
+      
+      // Final cleanup - remove any remaining backticks at start/end
+      cleanedContent = cleanedContent.replace(/^`+|`+$/g, '').trim();
+      
       analysis = JSON.parse(cleanedContent);
     } catch (parseError) {
-      console.error('Failed to parse AI response:', content);
+      // Log generic parse error without exposing content
+      console.error('Analysis response parsing failed');
       return new Response(
         JSON.stringify({ error: 'Failed to parse analysis results' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Land analysis completed successfully');
+    // Land analysis completed
     
     return new Response(
       JSON.stringify({ analysis }),
@@ -149,7 +396,8 @@ Provide realistic estimates based on the acreage and typical conditions. Be spec
     );
 
   } catch (error) {
-    console.error('Error in analyze-land function:', error);
+    // Log generic error for operational monitoring
+    console.error('Land analysis failed');
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

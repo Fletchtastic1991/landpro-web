@@ -13,7 +13,7 @@ serve(async (req) => {
   try {
     const { message } = await req.json();
     
-    console.log('Chat request received:', { message });
+    // Log operation start without message content
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -53,22 +53,23 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      // Log generic AI error without exposing details
+      console.error('AI gateway request failed');
+      throw new Error('AI service temporarily unavailable');
     }
 
     const data = await response.json();
     const aiMessage = data.choices[0].message.content;
     
-    console.log('AI response generated');
+    // Log success without exposing response content
 
     return new Response(JSON.stringify({ message: aiMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    console.error('Error in chat function:', error);
+    // Log generic error for operational monitoring
+    console.error('Chat request failed');
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
     }), {
