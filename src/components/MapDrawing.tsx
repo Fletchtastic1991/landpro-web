@@ -863,7 +863,7 @@ export default function MapDrawing({
             )}
 
             {/* Decision Summary Layer */}
-            <DecisionSummary analysis={analysis} acreage={acreage} />
+            <DecisionSummary analysis={analysis} acreage={acreage} parcelId={undefined} />
 
             {/* Informational Disclaimer */}
             <AnalysisDisclaimer />
