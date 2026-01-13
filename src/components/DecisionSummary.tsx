@@ -2,7 +2,16 @@
  * DecisionSummary Component
  * 
  * Derives a decision-oriented summary layer from existing land analysis data.
- * Works strictly from information already present — no new API calls or assumptions.
+ * 
+ * READINESS RULES (Strict Memory Core Integration):
+ * 1. Development Readiness is PURE DERIVED from Memory Core - NOT from analysis
+ * 2. Only explicit user-declared memory entries affect readiness
+ * 3. Analysis output NEVER affects readiness state
+ * 4. "Build-Ready" is a DECISION STATE - prohibited unless supported by Memory Core
+ * 5. Missing prerequisites = conditional readiness (never "ready")
+ * 
+ * All other metrics (effort, uncertainty, risk) are derived from analysis data.
+ * 
  * Per LandPro OS Core Invariants: No guessing, source transparency, user confidence > system confidence.
  */
 
@@ -18,8 +27,11 @@ import {
   Tent,
   ShieldCheck,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Info
 } from "lucide-react";
+import { useReadiness } from "@/hooks/useReadiness";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface LandAnalysis {
   vegetation: {
@@ -63,6 +75,7 @@ interface LandAnalysis {
 interface DecisionSummaryProps {
   analysis: LandAnalysis;
   acreage: number | null;
+  parcelId?: string; // Required for Memory Core-based readiness
 }
 
 // Derive clearing effort from analysis data
@@ -117,17 +130,12 @@ function deriveBudgetUncertainty(analysis: LandAnalysis): 'Low' | 'Moderate' | '
   return 'Low';
 }
 
-// Derive development readiness
-function deriveDevelopmentReadiness(analysis: LandAnalysis): 'Raw' | 'Early-Stage' | 'Build-Ready' {
-  const devStatus = analysis.existing_development?.status?.toLowerCase() || '';
-  const density = analysis.vegetation?.density?.toLowerCase() || '';
-  const infrastructure = analysis.existing_development?.infrastructure_present || [];
-  
-  if (devStatus.includes('developed') || infrastructure.length >= 3) return 'Build-Ready';
-  if (devStatus.includes('partial') || infrastructure.length >= 1) return 'Early-Stage';
-  if (density.includes('light') || density.includes('sparse') || density.includes('minimal')) return 'Early-Stage';
-  return 'Raw';
-}
+// NOTE: Development Readiness is now computed via useReadiness hook from Memory Core
+// The old deriveDevelopmentReadiness function has been removed to enforce:
+// - One-Way Data Flow: Memory Core → Readiness
+// - Explicit Memory Only: Only user-declared entries affect readiness
+// - No Auto-Promotion: Analysis reruns NEVER change readiness
+// See useReadiness hook and src/lib/readiness for implementation
 
 // Identify top risk drivers
 function deriveRiskDrivers(analysis: LandAnalysis): string[] {
@@ -309,7 +317,13 @@ function getEffortBadgeColor(level: string): string {
 
 function getReadinessBadgeColor(level: string): string {
   switch (level) {
-    case 'Build-Ready': return 'bg-green-100 text-green-800 border-green-200';
+    case 'conditional': return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'early_stage': return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'raw': return 'bg-slate-100 text-slate-800 border-slate-200';
+    case 'not_ready': return 'bg-slate-100 text-slate-600 border-slate-200';
+    case 'blocked': return 'bg-red-100 text-red-800 border-red-200';
+    // Legacy fallback mappings
+    case 'Build-Ready': return 'bg-amber-100 text-amber-800 border-amber-200'; // Now conditional
     case 'Early-Stage': return 'bg-blue-100 text-blue-800 border-blue-200';
     case 'Raw': return 'bg-slate-100 text-slate-800 border-slate-200';
     default: return 'bg-muted text-muted-foreground';
@@ -343,11 +357,23 @@ function getConfidenceBadgeColor(level: string): string {
   }
 }
 
-export default function DecisionSummary({ analysis, acreage }: DecisionSummaryProps) {
-  // Derive all decision metrics from existing analysis
+export default function DecisionSummary({ analysis, acreage, parcelId }: DecisionSummaryProps) {
+  // READINESS: Computed from Memory Core (NOT from analysis)
+  // This follows strict rules: one-way data flow, explicit memory only, no auto-promotion
+  const { 
+    label: readinessLabel, 
+    level: readinessLevel,
+    conditionalStatement,
+    missingRequirements,
+    blockers,
+    hasMissingRequirements,
+    hasBlockers,
+    isComputing: isReadinessLoading,
+  } = useReadiness(parcelId);
+
+  // OTHER METRICS: Derived from analysis data (unchanged)
   const clearingEffort = deriveClearingEffort(analysis);
   const budgetUncertainty = deriveBudgetUncertainty(analysis);
-  const readiness = deriveDevelopmentReadiness(analysis);
   const riskDrivers = deriveRiskDrivers(analysis);
   const costSensitivity = deriveCostSensitivity(analysis);
   const regionalContext = deriveRegionalContext(analysis);
@@ -381,6 +407,10 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
     canWait.push('Drainage improvements (if not affecting clearing access)');
   }
 
+  // Display label for readiness - defaults to "Not Ready" if no parcelId provided
+  const displayReadinessLabel = parcelId ? (readinessLabel ?? 'Loading...') : 'No Parcel Selected';
+  const displayReadinessLevel = readinessLevel ?? 'not_ready';
+
   return (
     <Card className="shadow-sm">
       <CardHeader className="pb-2 pt-4 px-5">
@@ -389,7 +419,7 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
           Decision Summary
         </CardTitle>
         <p className="text-xs text-muted-foreground mt-1">
-          Derived from analysis data. Acknowledges uncertainty where it exists.
+          Derived from analysis data. Readiness requires explicit user decisions.
         </p>
       </CardHeader>
       <CardContent className="pb-4 px-5 space-y-5">
@@ -408,12 +438,78 @@ export default function DecisionSummary({ analysis, acreage }: DecisionSummaryPr
             </Badge>
           </div>
           <div className="space-y-1.5">
-            <div className="text-sm text-muted-foreground">Development Readiness</div>
-            <Badge className={`${getReadinessBadgeColor(readiness)} text-sm`}>
-              {readiness}
+            <div className="text-sm text-muted-foreground flex items-center gap-1">
+              Development Readiness
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3 w-3 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-xs">
+                    <p className="text-xs">
+                      Readiness is derived from recorded decisions, not analysis. 
+                      Record milestones (surveys, clearing, permits) to advance readiness.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <Badge className={`${getReadinessBadgeColor(displayReadinessLevel)} text-sm`}>
+              {isReadinessLoading ? 'Loading...' : displayReadinessLabel}
             </Badge>
+            {conditionalStatement && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {conditionalStatement}
+              </p>
+            )}
           </div>
         </div>
+
+        {/* Missing Requirements / Blockers - shown when present */}
+        {(hasMissingRequirements || hasBlockers) && parcelId && (
+          <>
+            <div className="border-t" />
+            <div className="space-y-2">
+              {hasBlockers && (
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-red-700 flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4" />
+                    Blockers
+                  </h4>
+                  <ul className="space-y-1">
+                    {blockers.map((b) => (
+                      <li key={b.record_id} className="text-xs text-red-600 flex items-start gap-2">
+                        <span className="flex-shrink-0">•</span>
+                        {b.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {hasMissingRequirements && !hasBlockers && (
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium text-amber-700 flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    Missing for Build-Ready
+                  </h4>
+                  <ul className="space-y-1">
+                    {missingRequirements.slice(0, 3).map((m) => (
+                      <li key={m.milestone} className="text-xs text-amber-600 flex items-start gap-2">
+                        <span className="flex-shrink-0">•</span>
+                        {m.label}
+                      </li>
+                    ))}
+                    {missingRequirements.length > 3 && (
+                      <li className="text-xs text-amber-600">
+                        +{missingRequirements.length - 3} more
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         {/* Divider */}
         <div className="border-t" />
