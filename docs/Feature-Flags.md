@@ -96,3 +96,146 @@ A feature may be enabled only if:
 
 Any feature found executing while marked DISABLED
 is considered a system defect.
+
+## Feature Reintroduction Order (v0.1)
+
+Features must be reintroduced in the following sequence.
+Skipping steps or enabling features out of order is prohibited.
+
+Each phase must be stable before proceeding.
+
+---
+
+### Phase 0 — Documentation Lock (CURRENT STATE)
+
+Enabled:
+- None
+
+Requirements:
+- Invariants finalized
+- Land Journal schema defined
+- Behavioral rules committed
+- Feature flags declared
+
+Outcome:
+- System rules are authoritative
+- No runtime logic assumed
+
+---
+
+### Phase 1 — Map Foundation
+
+Enable:
+- MAP_BASE
+
+Validation Criteria:
+- Map renders reliably
+- No interaction
+- No journal writes
+- No data inference
+
+Failure Mode:
+- Rendering issues only (safe)
+
+---
+
+### Phase 2 — User Geometry (Critical Boundary)
+
+Enable:
+- MAP_DRAW
+
+Validation Criteria:
+- Geometry exists only via explicit user action
+- Geometry is immutable without permission
+- Undo works
+- Journal writes only GEOMETRY_ACTION
+
+Hard Stop Conditions:
+- Any automatic geometry creation
+- Any modification without user intent
+- Any silent redraw
+
+---
+
+### Phase 3 — Journal Activation
+
+Enable:
+- Decision Memory (Land Journal writes)
+
+Validation Criteria:
+- Append-only behavior confirmed
+- Undo produces USER_UNDO entries
+- No AI writes
+- No system interpretations
+
+Hard Stop Conditions:
+- Overwrites
+- Silent edits
+- Missing history
+
+---
+
+### Phase 4 — Report Generation
+
+Enable:
+- REPORT_GENERATION
+
+Validation Criteria:
+- Report reflects current geometry only
+- Prior reports preserved
+- REPORT_REPLACED written when applicable
+- Conflicts block output
+
+Hard Stop Conditions:
+- Silent report changes
+- Unexplained reclassification
+- Conflicting data allowed through
+
+---
+
+### Phase 5 — AI Explanation Layer
+
+Enable:
+- AI_EXPLANATION
+
+Validation Criteria:
+- AI references report sections only
+- No new facts introduced
+- Unanswerable questions explicitly refused
+
+Hard Stop Conditions:
+- AI conclusions
+- AI confidence inflation
+- AI memory writes
+
+---
+
+### Phase 6 — External Data (Optional / Future)
+
+Enable:
+- PARCEL_LOOKUP
+
+Validation Criteria:
+- Source transparency displayed
+- No auto-merge with user geometry
+- Failure clearly surfaced
+
+Hard Stop Conditions:
+- Blended sources
+- Silent upgrades/downgrades
+
+---
+
+### Phase 7 — User Accounts (Isolated)
+
+Enable:
+- USER_ACCOUNTS
+
+Validation Criteria:
+- No impact on analysis
+- No gating of accuracy
+- No behavioral changes
+
+Hard Stop Conditions:
+- Paywall-driven logic
+- Data tier bias
