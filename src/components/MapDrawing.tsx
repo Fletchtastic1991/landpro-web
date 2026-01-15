@@ -3,7 +3,6 @@ import mapboxgl from "mapbox-gl";
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
 import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import * as turf from "@turf/turf";
-import type { Polygon, FeatureCollection } from "geojson";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
@@ -16,7 +15,6 @@ import AnalysisDisclaimer from "@/components/AnalysisDisclaimer";
 import DecisionSummary from "@/components/DecisionSummary";
 
 const MAP_STYLES = {
-  custom: { id: "mapbox://styles/fletchtastic1991/cmkczdlr6006d01qn119r4anr", label: "LandPro" },
   satellite: { id: "mapbox://styles/mapbox/satellite-streets-v12", label: "Satellite" },
   streets: { id: "mapbox://styles/mapbox/streets-v12", label: "Streets" },
   terrain: { id: "mapbox://styles/mapbox/outdoors-v12", label: "Terrain" },
@@ -63,10 +61,10 @@ interface LandAnalysis {
 import type { LandIntent } from "@/components/IntentSelector";
 
 interface MapDrawingProps {
-  initialBoundary?: Polygon | null;
+  initialBoundary?: GeoJSON.Polygon | null;
   initialAcreage?: number | null;
-  onSave?: (boundary: Polygon, acreage: number) => Promise<void>;
-  onCreateProject?: (boundary: Polygon, acreage: number, analysis?: LandAnalysis) => void;
+  onSave?: (boundary: GeoJSON.Polygon, acreage: number) => Promise<void>;
+  onCreateProject?: (boundary: GeoJSON.Polygon, acreage: number, analysis?: LandAnalysis) => void;
   readOnly?: boolean;
   intent?: LandIntent | null;
   autoAnalyze?: boolean;
@@ -90,14 +88,10 @@ export default function MapDrawing({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFetchingParcel, setIsFetchingParcel] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
-  const [currentPolygon, setCurrentPolygon] = useState<Polygon | null>(null);
+  const [currentPolygon, setCurrentPolygon] = useState<GeoJSON.Polygon | null>(null);
   const [analysis, setAnalysis] = useState<LandAnalysis | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
-  const [mapStyle, setMapStyle] = useState<MapStyleKey>("custom");
-  const [measureMode, setMeasureMode] = useState<'none' | 'distance' | 'area'>('none');
-  const [measurePoints, setMeasurePoints] = useState<[number, number][]>([]);
-  const [measureResult, setMeasureResult] = useState<string | null>(null);
-  const measureSourceRef = useRef<boolean>(false);
+  const [mapStyle, setMapStyle] = useState<MapStyleKey>("satellite");
   const [parcelSource, setParcelSource] = useState<'osm' | 'estimated' | 'manual' | null>(null);
   const [parcelMessage, setParcelMessage] = useState<string | null>(null);
 
@@ -107,108 +101,8 @@ export default function MapDrawing({
     map.current.setStyle(MAP_STYLES[style].id);
   }, []);
 
-<<<<<<< HEAD
-  const clearMeasurement = useCallback(() => {
-    setMeasurePoints([]);
-    setMeasureResult(null);
-    if (map.current && measureSourceRef.current) {
-      try {
-        if (map.current.getLayer('measure-lines')) map.current.removeLayer('measure-lines');
-        if (map.current.getLayer('measure-points')) map.current.removeLayer('measure-points');
-        if (map.current.getLayer('measure-fill')) map.current.removeLayer('measure-fill');
-        if (map.current.getSource('measure-geojson')) map.current.removeSource('measure-geojson');
-        measureSourceRef.current = false;
-      } catch (e) {
-        // Ignore errors if layers don't exist
-      }
-    }
-  }, []);
 
-  const toggleMeasureMode = useCallback((mode: 'distance' | 'area') => {
-    if (measureMode === mode) {
-      setMeasureMode('none');
-      clearMeasurement();
-    } else {
-      setMeasureMode(mode);
-      clearMeasurement();
-    }
-  }, [measureMode, clearMeasurement]);
-
-  const updateMeasurementDisplay = useCallback((points: [number, number][]) => {
-    if (!map.current || points.length < 2) return;
-
-    const geojson: FeatureCollection = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          properties: {},
-          geometry: measureMode === 'area' && points.length >= 3
-            ? { type: 'Polygon', coordinates: [[...points, points[0]]] }
-            : { type: 'LineString', coordinates: points }
-        },
-        ...points.map(coord => ({
-          type: 'Feature' as const,
-          properties: {},
-          geometry: { type: 'Point' as const, coordinates: coord }
-        }))
-      ]
-    };
-
-    if (!measureSourceRef.current) {
-      map.current.addSource('measure-geojson', { type: 'geojson', data: geojson });
-      
-      if (measureMode === 'area') {
-        map.current.addLayer({
-          id: 'measure-fill',
-          type: 'fill',
-          source: 'measure-geojson',
-          filter: ['==', '$type', 'Polygon'],
-          paint: { 'fill-color': '#3b82f6', 'fill-opacity': 0.2 }
-        });
-      }
-      
-      map.current.addLayer({
-        id: 'measure-lines',
-        type: 'line',
-        source: 'measure-geojson',
-        filter: ['in', '$type', 'LineString', 'Polygon'],
-        paint: { 'line-color': '#3b82f6', 'line-width': 2, 'line-dasharray': [2, 2] }
-      });
-      
-      map.current.addLayer({
-        id: 'measure-points',
-        type: 'circle',
-        source: 'measure-geojson',
-        filter: ['==', '$type', 'Point'],
-        paint: { 'circle-radius': 5, 'circle-color': '#3b82f6', 'circle-stroke-color': '#fff', 'circle-stroke-width': 2 }
-      });
-      
-      measureSourceRef.current = true;
-    } else {
-      (map.current.getSource('measure-geojson') as mapboxgl.GeoJSONSource)?.setData(geojson);
-    }
-
-    // Calculate measurement
-    if (measureMode === 'distance') {
-      const line = turf.lineString(points);
-      const length = turf.length(line, { units: 'feet' });
-      setMeasureResult(length >= 5280 
-        ? `${(length / 5280).toFixed(2)} miles`
-        : `${Math.round(length)} ft`
-      );
-    } else if (measureMode === 'area' && points.length >= 3) {
-      const polygon = turf.polygon([[...points, points[0]]]);
-      const areaM2 = turf.area(polygon);
-      const acres = areaM2 * 0.000247105;
-      setMeasureResult(acres >= 1 
-        ? `${acres.toFixed(2)} acres`
-        : `${Math.round(areaM2 * 10.7639)} sq ft`
-      );
-    }
-  }, [measureMode]);
-
-  const calculateArea = useCallback((polygon: Polygon) => {
+  const calculateArea = useCallback((polygon: GeoJSON.Polygon) => {
     const area = turf.area(polygon);
     const acres = area * 0.000247105;
     return Math.round(acres * 100) / 100;
@@ -219,7 +113,7 @@ export default function MapDrawing({
     
     const data = draw.current.getAll();
     if (data.features.length > 0) {
-      const polygon = data.features[0].geometry as Polygon;
+      const polygon = data.features[0].geometry as GeoJSON.Polygon;
       const acres = calculateArea(polygon);
       setAcreage(acres);
       setCurrentPolygon(polygon);
@@ -324,7 +218,7 @@ export default function MapDrawing({
 
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: "mapbox://styles/fletchtastic1991/cmkczdlr6006d01qn119r4anr",
+      style: "mapbox://styles/mapbox/satellite-streets-v12",
       center: [-98.5795, 39.8283],
       zoom: 4,
       pitch: 0,
@@ -373,32 +267,22 @@ export default function MapDrawing({
         },
         defaultMode: "simple_select",
         styles: [
-          // LandPro Parcel Fill
           {
-            id: "parcel-fill",
+            id: "gl-draw-polygon-fill",
             type: "fill",
-            filter: ["all", ["==", "$type", "Polygon"], ["!=", "mode", "static"]],
+            filter: ["all", ["==", "$type", "Polygon"]],
             paint: {
               "fill-color": "#22c55e",
-<<<<<<< HEAD
-              "fill-opacity": 0.25,
-=======
               "fill-opacity": 0.35,
->>>>>>> b1edc57747863270de912ef205bd755ab2db9f6c
             },
           },
-          // LandPro Parcel Outline
           {
-            id: "parcel-outline",
+            id: "gl-draw-polygon-stroke",
             type: "line",
-            filter: ["all", ["==", "$type", "Polygon"], ["!=", "mode", "static"]],
+            filter: ["all", ["==", "$type", "Polygon"]],
             paint: {
               "line-color": "#16a34a",
-<<<<<<< HEAD
-              "line-width": 2,
-=======
               "line-width": 4,
->>>>>>> b1edc57747863270de912ef205bd755ab2db9f6c
             },
           },
           {
@@ -433,42 +317,17 @@ export default function MapDrawing({
 
       map.current.addControl(draw.current, "top-left");
 
-<<<<<<< HEAD
-      // LANDPRO DRAW EVENTS
-      const updateParcel = () => {
-        const data = draw.current?.getAll();
-        if (!data || !data.features.length) return;
-
-        const parcel = data.features[0];
-        console.log("📍 Parcel drawn:", parcel);
-
-        // 👉 LandPro logic hooks in here
-        updateArea();
-      };
-
-      const clearParcel = () => {
-        console.log("🗑 Parcel removed");
-=======
       map.current.on("draw.create", () => updateArea(false));
       map.current.on("draw.update", () => updateArea(false));
       map.current.on("draw.delete", () => {
->>>>>>> b1edc57747863270de912ef205bd755ab2db9f6c
         setAcreage(null);
         setCurrentPolygon(null);
         setHasChanges(false);
         setAnalysis(null);
         setShowAnalysis(false);
-<<<<<<< HEAD
-      };
-
-      map.current.on("draw.create", updateParcel);
-      map.current.on("draw.update", updateParcel);
-      map.current.on("draw.delete", clearParcel);
-=======
         setParcelSource(null);
         setParcelMessage(null);
       });
->>>>>>> b1edc57747863270de912ef205bd755ab2db9f6c
     }
 
 
@@ -675,156 +534,6 @@ export default function MapDrawing({
               <span className="text-[10px] text-amber-600 font-normal">(estimate)</span>
             )}
           </div>
-<<<<<<< HEAD
-
-          <p className="text-sm text-muted-foreground">{analysis.summary}</p>
-
-          {/* Vegetation */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Leaf className="h-4 w-4 text-green-600" />
-                Vegetation
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{analysis.vegetation.type}</span>
-                <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getDensityColor(analysis.vegetation.density)}`}>
-                  {analysis.vegetation.density} density
-                </div>
-              </div>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                {analysis.vegetation.recommendations.map((rec, i) => (
-                  <li key={i}>• {rec}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Terrain */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Mountain className="h-4 w-4 text-amber-600" />
-                Terrain
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-medium">{analysis.terrain.type}</span>
-                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-foreground">{analysis.terrain.slope_estimate} slope</div>
-                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold text-foreground">{analysis.terrain.drainage} drainage</div>
-              </div>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                {analysis.terrain.recommendations.map((rec, i) => (
-                  <li key={i}>• {rec}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Equipment */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-blue-600" />
-                Equipment
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex flex-wrap gap-1">
-                {analysis.equipment.recommended.map((eq, i) => (
-                  <div key={i} className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">{eq}</div>
-                ))}
-              </div>
-              <ul className="text-xs text-muted-foreground space-y-1">
-                {analysis.equipment.considerations.map((con, i) => (
-                  <li key={i}>• {con}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-
-          {/* Labor */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Users className="h-4 w-4 text-purple-600" />
-                Labor Estimate
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2">
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div>
-                  <div className="text-xl font-bold">{analysis.labor.estimated_crew_size}</div>
-                  <div className="text-xs text-muted-foreground">Crew Size</div>
-                </div>
-                <div>
-                  <div className="text-xl font-bold">{analysis.labor.estimated_hours}</div>
-                  <div className="text-xs text-muted-foreground">Hours</div>
-                </div>
-                <div>
-                  <div className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${getDifficultyColor(analysis.labor.difficulty)}`}>
-                    {analysis.labor.difficulty}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">Difficulty</div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Cost Estimate */}
-          <Card>
-            <CardHeader className="py-3">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-600" />
-                Cost Estimate
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="py-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Base rate/acre:</span>
-                <span className="font-medium">${analysis.cost_factors.base_rate_per_acre}</span>
-              </div>
-              <div className="flex items-center justify-between border-t pt-2">
-                <span className="font-medium">Estimated Total:</span>
-                <span className="text-lg font-bold text-primary">
-                  ${analysis.cost_factors.estimated_total.toLocaleString()}
-                </span>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <span className="font-medium">Cost factors:</span>
-                <ul className="mt-1 space-y-0.5">
-                  {analysis.cost_factors.factors_affecting_cost.map((factor, i) => (
-                    <li key={i}>• {factor}</li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Hazards */}
-          {analysis.hazards.length > 0 && (
-            <Card className="border-destructive/50">
-              <CardHeader className="py-3">
-                <CardTitle className="text-sm flex items-center gap-2 text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  Potential Hazards
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="py-2">
-                <ul className="text-xs space-y-1">
-                  {analysis.hazards.map((hazard, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-destructive">⚠</span>
-                      {hazard}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-=======
           <div className={`text-2xl font-bold ${parcelSource === 'estimated' ? 'text-amber-600' : 'text-primary'}`}>
             {isFetchingParcel ? (
               <span className="flex items-center gap-2 text-base text-muted-foreground">
@@ -871,7 +580,6 @@ export default function MapDrawing({
                 </p>
               )}
             </div>
->>>>>>> b1edc57747863270de912ef205bd755ab2db9f6c
           )}
         </div>
 
