@@ -1,4 +1,4 @@
-import { createGeometryCommand } from "../commands/CreateGeometryCommand";
+import { createGeometryCommand } from "../commands/CreateGeometryCommand.ts";
 import { dispatchEvent } from "../dispatcher/EventDispatcher";
 import { getJournal } from "../journal/JournalWriter";
 
