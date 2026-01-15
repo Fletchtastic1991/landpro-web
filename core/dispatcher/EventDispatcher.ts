@@ -32,8 +32,7 @@ export function dispatchEvent(event: LandProEvent) {
       break;
 
     default:
-      // Exhaustiveness safety
-      const _exhaustive: never = event;
-      return _exhaustive;
+      // No-op for unhandled events (explicitly allowed)
+      return;
   }
 }
