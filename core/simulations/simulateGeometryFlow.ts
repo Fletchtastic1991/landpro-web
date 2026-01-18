@@ -1,6 +1,6 @@
-import { createGeometryCommand } from "../commands/CreateGeometryCommand.ts";
-import { dispatchEvent } from "../dispatcher/EventDispatcher.ts";
-import { getJournal } from "../journal/JournalWriter.ts";
+import { createGeometryCommand } from "../commands/CreateGeometryCommand";
+import { dispatchEvent } from "../dispatcher/EventDispatcher";
+import { getJournal } from "../journal/JournalWriter";
 
 // --- Simulated runtime state ---
 const featureFlags = {
