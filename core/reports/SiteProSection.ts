@@ -3,7 +3,7 @@ import { MockElevationAdapter } from "../data/mocks/MockElevationAdapter";
 import { MockLandCoverAdapter } from "../data/mocks/MockLandCoverAdapter";
 import { MockStructureAdapter } from "../data/mocks/MockStructureAdapter";
 
-export interface SiteProSection {
+export interface SiteProSectionReport {
   status: "AVAILABLE" | "BLOCKED";
 
   reasonIfBlocked?: string;
@@ -29,12 +29,14 @@ export interface SiteProSection {
  *
  * Purpose:
  * - Describe physical site conditions INSIDE the parcel geometry
- * - Provide facts only (no decisions, no recommendations)
- * - Act as a shared dependency for downstream Pros
+ * - Facts only (no decisions, no recommendations)
+ * - Shared dependency for downstream Pros
  */
 export function generateSiteProSection(
   base: BaseParcelReport
-): SiteProSection {
+): SiteProSectionReport {
+
+  // BLOCKED PATH
   if (!base.geometry.hasUserDrawnGeometry) {
     return {
       status: "BLOCKED",
@@ -43,41 +45,31 @@ export function generateSiteProSection(
     };
   }
 
+  // AVAILABLE PATH
   const geometryId = base.geometry.geometryIds[0];
 
-  const slopeStats =
-    MockElevationAdapter.getSlopeStats(geometryId);
+  const elevation =
+    MockElevationAdapter.getElevationStats(geometryId);
 
   const landCover =
-    MockLandCoverAdapter.getLandCover(geometryId);
+    MockLandCoverAdapter.getLandCoverStats(geometryId);
 
-  const dominant = landCover.categories.reduce((max, curr) =>
-  curr.percent > max.percent ? curr : max
-);
-
-    MockStructureAdapter.getStructures(geometryId);
-const structures = MockStructureAdapter.getStructures(geometryId);
-
-const totalDetected = structures.detections.reduce(
-  (sum, d) => sum + d.count,
-  0
-);
-
-const detectedTypes = structures.detections.map(d => d.type);
-
-const hasStructures = totalDetected > 0;
+  const structures =
+    MockStructureAdapter.getStructureStats(geometryId);
 
   return {
     status: "AVAILABLE",
 
     elevation: {
-      averageSlopePercent: slopeStats.avgSlopePercent,
-      maxSlopePercent: slopeStats.maxSlopePercent
+      averageSlopePercent: elevation.averageSlopePercent,
+      maxSlopePercent: elevation.maxSlopePercent
     },
 
     landCover: {
       dominantType: landCover.dominantType,
-      coveragePercent: landCover.coverage
+      coveragePercent: landCover.categories.find(
+        c => c.type === landCover.dominantType
+      )?.percent ?? 0
     },
 
     structures: {

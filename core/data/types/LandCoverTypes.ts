@@ -8,7 +8,7 @@ export interface LandCoverStats {
 }
 export interface LandCoverStats {
   dominantType: string;
-  coverage: number;
+  coveragePercent: number;
   forestPercent: number;
   grassPercent: number;
   scrubPercent: number;
