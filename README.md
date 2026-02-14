@@ -1,73 +1,171 @@
-# Welcome to your Lovable project
+# LandPro Core — MVP
 
-## Project info
+LandPro is an intelligent land assessment and documentation platform designed to help contractors capture field observations and generate professional, trustworthy project reports.
 
-**URL**: https://lovable.dev/projects/db2b2e8b-1559-45ef-96f1-9d86cadbb705
+The MVP focuses on establishing the **Core Infrastructure Layer** — a system of record that preserves the integrity, history, and reliability of land assessments.
 
-## How can I edit this code?
+---
 
-There are several ways of editing your application.
+# Problem
 
-**Use Lovable**
+Contractors performing property walks often rely on memory, handwritten notes, photos, or informal documents when estimating land projects.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/db2b2e8b-1559-45ef-96f1-9d86cadbb705) and start prompting.
+This results in:
 
-Changes made via Lovable will be committed automatically to this repo.
+* Inconsistent documentation
+* Reduced client confidence
+* Miscommunication about project scope
+* Lost time creating reports
+* Increased risk of disputes
 
-**Use your preferred IDE**
+There is no structured system that converts field observations into a clear, professional land project report instantly.
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+---
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+# First User
 
-Follow these steps:
+The initial user is a:
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+**Small-to-mid size land clearing or grading contractor**
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Who:
 
-# Step 3: Install the necessary dependencies.
-npm i
+* Performs on-site property walks
+* Estimates projects manually or with informal tools
+* Needs to communicate scope clearly to clients
+* Wants to appear more professional and win more jobs
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+---
 
-**Edit a file directly in GitHub**
+# Core Value Proposition
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+During a property walk, the contractor enters structured observations and clicks **Generate Report**.
 
-**Use GitHub Codespaces**
+LandPro instantly produces a professional, detailed scope report.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+This saves time, increases clarity, and improves client trust.
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+# MVP Scope
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The MVP includes:
 
-## How can I deploy this project?
+* LandPro Core Infrastructure
+* One fully implemented specialty lens
+* Assessment creation workflow
+* Canonical report generation
+* Version history preservation
 
-Simply open [Lovable](https://lovable.dev/projects/db2b2e8b-1559-45ef-96f1-9d86cadbb705) and click on Share -> Publish.
+The goal of the MVP is to validate:
 
-## Can I connect a custom domain to my Lovable project?
+> Contractors will adopt structured field capture if it produces immediate professional output.
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Core Architecture Philosophy
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+LandPro Core is responsible for maintaining the **integrity of assessment records**.
+
+Core responsibilities include:
+
+* Creating and storing parcel records
+* Creating and versioning assessment records
+* Accepting structured input from specialty lenses
+* Locking assessments upon report generation
+* Generating reports from canonical data
+* Preserving historical versions (no overwrites)
+
+Core does **not** perform specialty analysis.
+
+Specialty intelligence belongs to lenses.
+
+This separation ensures scalability and reliability.
+
+---
+
+# Canonical Lock Event
+
+An assessment becomes canonical when the contractor clicks **Generate Report**.
+
+At that moment:
+
+* Timestamp is recorded
+* Version number is created or incremented
+* Data becomes immutable (locked)
+* Report is generated from the frozen record
+
+Any edits after locking require creation of a new assessment version.
+
+This preserves historical accuracy and establishes a trustworthy system of record.
+
+---
+
+# Specialty Lens Concept (MVP: One Lens)
+
+A specialty lens provides structured inputs for a specific domain of observation.
+
+Examples (future):
+
+* Clearing Lens
+* Grading Lens
+* Drainage Lens
+* Forestry Lens
+* Environmental Lens
+
+The MVP includes only **one fully implemented lens** to validate the workflow.
+
+---
+
+# Out of Scope (MVP)
+
+The following are intentionally excluded from the MVP:
+
+* AI predictions
+* Automated cost modeling
+* Marketplace features
+* Multi-contractor collaboration
+* Advanced analytics dashboards
+* Multiple specialty lenses
+
+Focus is on proving the core workflow first.
+
+---
+
+# Why This Matters
+
+Contractors who present clear, professional documentation:
+
+* Win more projects
+* Reduce misunderstandings
+* Build stronger client trust
+* Protect themselves from disputes
+
+LandPro transforms informal field notes into a reliable, professional system.
+
+---
+
+# Long-Term Vision
+
+LandPro aims to become the **system of record for physical land projects**.
+
+A trusted source of truth that preserves:
+
+* Observations
+* Decisions
+* Project scope history
+* Property evolution over time
+
+The MVP establishes the foundation for this infrastructure.
+
+---
+
+# Development Status
+
+MVP — In Design Phase
+
+---
+
+# License
+
+Proprietary — All rights reserved.
