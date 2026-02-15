@@ -7,5 +7,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["core/**/*.ts"]
+  "include": ["**/*.ts"]
 }

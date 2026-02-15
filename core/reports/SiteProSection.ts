@@ -1,7 +1,7 @@
 import { BaseParcelReport } from "./BaseParcelReport";
-import { MockElevationAdapter } from "../data/mocks/MockElevationAdapter";
-import { MockLandCoverAdapter } from "../data/mocks/MockLandCoverAdapter";
-import { MockStructureAdapter } from "../data/mocks/MockStructureAdapter";
+import { MockElevationAdapter } from "../storage/data/mocks/MockElevationAdapter";
+import { MockLandCoverAdapter } from "../storage/data/mocks/MockLandCoverAdapter";
+import { MockStructureAdapter } from "../storage/data/mocks/MockStructureAdapter";
 
 export interface SiteProSectionReport {
   status: "AVAILABLE" | "BLOCKED";

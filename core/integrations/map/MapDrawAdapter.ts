@@ -1,5 +1,5 @@
-import { createGeometryCommand } from "../../commands/CreateGeometryCommand.ts";
-import { CommandResult } from "../../commands/CommandResult.ts";
+import { createGeometryCommand } from "../../commands/CreateGeometryCommand.js";
+import { CommandResult } from "../../commands/CommandResult.js";
 
 export interface MapDrawInput {
   parcelId: string;
