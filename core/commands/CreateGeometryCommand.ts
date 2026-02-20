@@ -1,12 +1,13 @@
 import { EventType, GeometryEvent } from "../events/EventTypes";
 import { CommandResult } from "./CommandResult";
+import type { GeoJSON } from "geojson";
 
 /**
  * Input required to create geometry
  */
 interface CreateGeometryInput {
   parcelId: string;
-  geometryId: string;
+  geometryId: GeoJSON;
   source: "user" | "system";
   featureFlags: {
     MAP_DRAW: boolean;
@@ -45,7 +46,8 @@ export function createGeometryCommand(
     timestamp: new Date().toISOString(),
     source: "user",
     parcelId: input.parcelId,
-    geometryId: input.geometryId
+    geometryId: crypto.randomUUID(),
+    geometry: input.geometryId
   };
 
   return {

@@ -7,5 +7,5 @@
     "strict": true,
     "skipLibCheck": true
   },
-  "include": ["**/*.ts"]
+  "include": ["**/*.ts", "../lenses/sitepro/contracts/SiteProContract.ts", "../lenses/sitepro/contracts/SiteProInvariants.ts"]
 }

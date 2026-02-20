@@ -40,6 +40,7 @@ export function undoJournalEntry(
   const undoEvent: LandProEvent = {
     id: crypto.randomUUID(),
     type: EventType.USER_UNDO,
+    targetEventId: target.event.id,
     timestamp: new Date().toISOString(),
     source: "user",
     parcelId: target.event.parcelId

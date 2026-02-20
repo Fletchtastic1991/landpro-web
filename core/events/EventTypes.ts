@@ -65,6 +65,7 @@ export interface GeometryEvent extends BaseEvent {
     | EventType.GEOMETRY_UPDATED
     | EventType.GEOMETRY_DELETED;
   geometryId: string;
+  geometry?: unknown;
 }
 
 /**
