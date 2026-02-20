@@ -25,7 +25,7 @@ type MapStyleKey = keyof typeof MAP_STYLES;
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const MAPBOX_TOKEN = "pk.eyJ1IjoiZmxldGNodGFzdGljMTk5MSIsImEiOiJjbWlxNnNjajUwamI2M2VvdmFmbGQ5NTlsIn0.hIurrjB3WXifVT10VgKXRA";
+const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "pk.eyJ1IjoiZmxldGNodGFzdGljMTk5MSIsImEiOiJjbWlxNnNjajUwamI2M2VvdmFmbGQ5NTlsIn0.hIurrjB3WXifVT10VgKXRA";
 
 interface LandAnalysis {
   vegetation: {

@@ -1,9 +1,60 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation
+function validateRequest(body: unknown): { valid: true; data: { boundary: any; acreage: number; location?: string; intent?: string } } | { valid: false; error: string } {
+  if (!body || typeof body !== 'object') {
+    return { valid: false, error: 'Request body must be a JSON object' };
+  }
+
+  const { boundary, acreage, location, intent } = body as any;
+
+  if (!boundary || typeof boundary !== 'object') {
+    return { valid: false, error: 'Boundary is required and must be a GeoJSON object' };
+  }
+
+  if (boundary.type !== 'Polygon') {
+    return { valid: false, error: 'Boundary must be a GeoJSON Polygon' };
+  }
+
+  if (!Array.isArray(boundary.coordinates) || boundary.coordinates.length === 0) {
+    return { valid: false, error: 'Boundary must have coordinates' };
+  }
+
+  const ring = boundary.coordinates[0];
+  if (!Array.isArray(ring) || ring.length < 4) {
+    return { valid: false, error: 'Polygon must have at least 4 coordinate pairs' };
+  }
+
+  for (const coord of ring) {
+    if (!Array.isArray(coord) || coord.length < 2 || typeof coord[0] !== 'number' || typeof coord[1] !== 'number') {
+      return { valid: false, error: 'Invalid coordinate format' };
+    }
+    if (coord[0] < -180 || coord[0] > 180 || coord[1] < -90 || coord[1] > 90) {
+      return { valid: false, error: 'Coordinates out of valid range' };
+    }
+  }
+
+  if (typeof acreage !== 'number' || acreage <= 0 || acreage > 10000) {
+    return { valid: false, error: 'Acreage must be a positive number up to 10,000' };
+  }
+
+  if (location !== undefined && (typeof location !== 'string' || location.length > 500)) {
+    return { valid: false, error: 'Location must be a string under 500 characters' };
+  }
+
+  const validIntents = ['build', 'clear', 'farm', 'evaluate'];
+  if (intent !== undefined && !validIntents.includes(intent)) {
+    return { valid: false, error: `Intent must be one of: ${validIntents.join(', ')}` };
+  }
+
+  return { valid: true, data: { boundary, acreage, location, intent } };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -11,14 +62,41 @@ serve(async (req) => {
   }
 
   try {
-    const { boundary, acreage, location, intent } = await req.json();
-    
-    if (!boundary || !acreage) {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
-        JSON.stringify({ error: 'Boundary and acreage are required' }),
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate input
+    const requestBody = await req.json();
+    const validation = validateRequest(requestBody);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const { boundary, acreage, location, intent } = validation.data;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -202,7 +280,7 @@ Return ONLY valid JSON with this exact structure:
     "boundary_provided": true/false,
     "acreage_provided": true/false,
     "location_provided": true/false,
-    "required_data_missing": [] // list any missing required fields
+    "required_data_missing": []
   },
   "vegetation": {
     "type": "factual description based on location and typical regional vegetation",
@@ -291,8 +369,6 @@ Return ONLY valid JSON with this exact structure:
 9. Map data > Analysis interpretation; User decisions > Analysis conclusions (INVARIANT 5)
 10. Violations of these invariants constitute a SYSTEM ERROR`;
 
-    // Starting land analysis
-    
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -327,7 +403,6 @@ RULES:
     });
 
     if (!response.ok) {
-      // Log generic AI error without exposing details
       console.error('AI gateway request failed');
       
       if (response.status === 429) {
@@ -353,7 +428,6 @@ RULES:
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
-      // Log generic error without exposing AI response
       return new Response(
         JSON.stringify({ error: 'Invalid AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -363,24 +437,20 @@ RULES:
     // Parse the JSON response, handling potential markdown code blocks
     let analysis;
     try {
-      // Remove markdown code blocks (```json, ```, etc.)
       let cleanedContent = content
-        .replace(/^```(?:json)?\s*/i, '')  // Remove opening code block
-        .replace(/\s*```$/i, '')            // Remove closing code block
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
         .trim();
       
-      // If still wrapped in backticks, try extracting JSON between them
       const jsonMatch = cleanedContent.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
       if (jsonMatch) {
         cleanedContent = jsonMatch[1].trim();
       }
       
-      // Final cleanup - remove any remaining backticks at start/end
       cleanedContent = cleanedContent.replace(/^`+|`+$/g, '').trim();
       
       analysis = JSON.parse(cleanedContent);
     } catch (parseError) {
-      // Log generic parse error without exposing content
       console.error('Analysis response parsing failed');
       return new Response(
         JSON.stringify({ error: 'Failed to parse analysis results' }),
@@ -388,18 +458,15 @@ RULES:
       );
     }
 
-    // Land analysis completed
-    
     return new Response(
       JSON.stringify({ analysis }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
-    // Log generic error for operational monitoring
     console.error('Land analysis failed');
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'Analysis request failed' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

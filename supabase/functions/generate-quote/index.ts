@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,9 +12,48 @@ serve(async (req) => {
   }
 
   try {
+    // Authenticate user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { clientName, jobDescription, propertySize, propertyUnit, materialNotes } = await req.json();
-    
-    // Log operation start without PII
+
+    // Input validation
+    if (!clientName || typeof clientName !== 'string' || clientName.length > 200) {
+      return new Response(JSON.stringify({ error: 'Valid client name is required (max 200 chars)' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!jobDescription || typeof jobDescription !== 'string' || jobDescription.length > 2000) {
+      return new Response(JSON.stringify({ error: 'Valid job description is required (max 2000 chars)' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!propertySize || typeof propertySize !== 'string' || propertySize.length > 50) {
+      return new Response(JSON.stringify({ error: 'Valid property size is required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -24,7 +64,7 @@ serve(async (req) => {
 
 Client: ${clientName}
 Job Description: ${jobDescription}
-Property Size: ${propertySize} ${propertyUnit}
+Property Size: ${propertySize} ${propertyUnit || ''}
 ${materialNotes ? `Material Notes: ${materialNotes}` : ''}
 
 Based on industry standards for landscaping and land management, provide:
@@ -82,32 +122,26 @@ Consider factors like:
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "Payment required, please add funds to your workspace." }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      // Log generic AI error without exposing details
       console.error('AI gateway request failed');
       throw new Error('AI service temporarily unavailable');
     }
 
     const data = await response.json();
-    // AI response received (not logging content)
 
     let quoteData;
     
-    // Check for tool call response
     if (data.choices[0]?.message?.tool_calls?.[0]) {
       const toolCall = data.choices[0].message.tool_calls[0];
       quoteData = JSON.parse(toolCall.function.arguments);
     } else {
-      // Fallback to parsing content
       const aiResponse = data.choices[0].message.content;
       const cleanedResponse = aiResponse.replace(/```json\n?|\n?```/g, '').trim();
       quoteData = JSON.parse(cleanedResponse);
@@ -125,14 +159,11 @@ Consider factors like:
       timestamp: new Date().toISOString()
     };
 
-    // Log success without exposing quote details
-
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
-    // Log generic error for operational monitoring
     console.error('Quote generation failed');
     return new Response(JSON.stringify({ 
       error: error instanceof Error ? error.message : 'Unknown error occurred' 
