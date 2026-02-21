@@ -13,7 +13,10 @@ const geometryId = "geom-abc";
 // 1. User attempts to draw geometry
 const commandResult = createGeometryCommand({
   parcelId,
-  geometryId,
+  geometryId: {
+    type: "Point",
+    coordinates: [0, 0]
+  },
   source: "user",
   featureFlags
 });

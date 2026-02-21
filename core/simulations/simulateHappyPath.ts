@@ -13,7 +13,14 @@ const geometryId = "geom-happy-001";
 // ---- 1. User draws geometry on map ----
 const commandResult = createGeometryCommand({
   parcelId,
-  geometryId,
+  geometryId: {
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: [0, 0]
+    },
+    properties: {}
+  },
   source: "user",
   featureFlags
 });

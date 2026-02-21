@@ -1,5 +1,16 @@
+// @ts-ignore
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+/// <reference lib="deno.window" />
+declare global {
+  namespace Deno {
+    const env: {
+      get(key: string): string | undefined;
+    };
+  }
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -56,7 +67,7 @@ function validateRequest(body: unknown): { valid: true; data: { boundary: any; a
   return { valid: true, data: { boundary, acreage, location, intent } };
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -71,6 +82,7 @@ serve(async (req) => {
       );
     }
 
+    // @ts-ignore
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -98,6 +110,7 @@ serve(async (req) => {
 
     const { boundary, acreage, location, intent } = validation.data;
 
+    // @ts-ignore
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       console.error('LOVABLE_API_KEY is not configured');

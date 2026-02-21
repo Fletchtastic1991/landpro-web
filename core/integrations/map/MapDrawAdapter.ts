@@ -1,5 +1,6 @@
 import { createGeometryCommand } from "../../commands/CreateGeometryCommand.js";
 import { CommandResult } from "../../commands/CommandResult.js";
+import type { GeoJSON } from "geojson";
 
 export interface MapDrawInput {
   parcelId: string;
@@ -24,7 +25,7 @@ export class MapDrawAdapter {
 
     return createGeometryCommand({
       parcelId,
-      geometryId: crypto.randomUUID(),
+      geometryId: geometry as GeoJSON.GeoJSON,
       source,
       featureFlags,
     });
