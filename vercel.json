@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/((?!assets|favicon\\.ico|landpro-logo\\.png).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
