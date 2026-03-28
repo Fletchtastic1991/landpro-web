@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Bug } from "lucide-react";
 import MapDrawing from "@/components/MapDrawing";
-import LandSelectors, { VegetationDensity, TerrainType, AccessibilityLevel } from "@/components/LandSelectors";
+import LandSelectors, { LandSelections, DEFAULT_LAND_SELECTIONS } from "@/components/LandSelectors";
 import { LandIntent, INTENT_OPTIONS } from "@/components/IntentSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,9 +34,14 @@ export default function MapExplorer() {
   const [selectedIntent] = useState<LandIntent | null>("evaluate");
   const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
   const [showDevTools, setShowDevTools] = useState(false);
-  const [vegetation, setVegetation] = useState<VegetationDensity | null>(null);
-  const [terrain, setTerrain] = useState<TerrainType | null>(null);
-  const [accessibility, setAccessibility] = useState<AccessibilityLevel | null>(null);
+  const [landSelections, setLandSelections] = useState<LandSelections>(DEFAULT_LAND_SELECTIONS);
+
+  const handleLandSelectionChange = (key: keyof LandSelections, value: string) => {
+    setLandSelections(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
 
   // DEV TOOLS: Only accessible via Ctrl+Shift+D keyboard shortcut
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -97,9 +102,9 @@ export default function MapExplorer() {
           .insert({
             project_id: project.id,
             land_classification: {
-              vegetation: vegetation || projectData.analysis.vegetation,
-              terrain: terrain || projectData.analysis.terrain,
-              accessibility: accessibility,
+              vegetation: landSelections.vegetation || projectData.analysis.vegetation,
+              terrain: landSelections.terrain || projectData.analysis.terrain,
+              accessibility: landSelections.accessibility,
               intent: projectData.intent,
             },
             hazards: projectData.analysis.hazards,
@@ -175,12 +180,8 @@ export default function MapExplorer() {
           </div>
           <Card className="p-6">
             <LandSelectors
-              vegetation={vegetation}
-              terrain={terrain}
-              accessibility={accessibility}
-              onVegetationChange={setVegetation}
-              onTerrainChange={setTerrain}
-              onAccessibilityChange={setAccessibility}
+              selections={landSelections}
+              onSelectionChange={handleLandSelectionChange}
             />
           </Card>
         </div>

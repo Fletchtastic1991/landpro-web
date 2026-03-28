@@ -1,30 +1,34 @@
 import React from "react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export type VegetationDensity = "light" | "medium" | "heavy";
 export type TerrainType = "flat" | "slight_slope" | "steep";
 export type AccessibilityLevel = "easy" | "moderate" | "difficult";
 
+export interface LandSelections {
+  vegetation: VegetationDensity;
+  terrain: TerrainType;
+  accessibility: AccessibilityLevel;
+}
+
+export const DEFAULT_LAND_SELECTIONS: LandSelections = {
+  vegetation: "light",
+  terrain: "flat",
+  accessibility: "easy",
+};
+
 interface LandSelectorsProps {
-  vegetation: VegetationDensity | null;
-  terrain: TerrainType | null;
-  accessibility: AccessibilityLevel | null;
-  onVegetationChange: (value: VegetationDensity) => void;
-  onTerrainChange: (value: TerrainType) => void;
-  onAccessibilityChange: (value: AccessibilityLevel) => void;
+  selections: LandSelections;
+  onSelectionChange: (key: keyof LandSelections, value: string) => void;
   className?: string;
 }
 
 const LandSelectors: React.FC<LandSelectorsProps> = ({
-  vegetation,
-  terrain,
-  accessibility,
-  onVegetationChange,
-  onTerrainChange,
-  onAccessibilityChange,
+  selections,
+  onSelectionChange,
   className,
 }) => {
   const groupStyle = "flex flex-col space-y-3";
@@ -38,8 +42,8 @@ const LandSelectors: React.FC<LandSelectorsProps> = ({
         <Label className="text-base font-semibold">Vegetation Density</Label>
         <ToggleGroup
           type="single"
-          value={vegetation || ""}
-          onValueChange={(value) => value && onVegetationChange(value as VegetationDensity)}
+          value={selections.vegetation}
+          onValueChange={(value) => value && onSelectionChange("vegetation", value)}
           className={toggleGroupStyle}
         >
           <ToggleGroupItem value="light" className={itemStyle}>
@@ -59,8 +63,8 @@ const LandSelectors: React.FC<LandSelectorsProps> = ({
         <Label className="text-base font-semibold">Terrain</Label>
         <ToggleGroup
           type="single"
-          value={terrain || ""}
-          onValueChange={(value) => value && onTerrainChange(value as TerrainType)}
+          value={selections.terrain}
+          onValueChange={(value) => value && onSelectionChange("terrain", value)}
           className={toggleGroupStyle}
         >
           <ToggleGroupItem value="flat" className={itemStyle}>
@@ -80,8 +84,8 @@ const LandSelectors: React.FC<LandSelectorsProps> = ({
         <Label className="text-base font-semibold">Accessibility</Label>
         <ToggleGroup
           type="single"
-          value={accessibility || ""}
-          onValueChange={(value) => value && onAccessibilityChange(value as AccessibilityLevel)}
+          value={selections.accessibility}
+          onValueChange={(value) => value && onSelectionChange("accessibility", value)}
           className={toggleGroupStyle}
         >
           <ToggleGroupItem value="easy" className={itemStyle}>
