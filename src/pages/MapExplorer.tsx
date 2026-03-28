@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Bug } from "lucide-react";
 import MapDrawing from "@/components/MapDrawing";
 import LandSelectors, { LandSelections, DEFAULT_LAND_SELECTIONS } from "@/components/LandSelectors";
+import JobSummary from "@/components/JobSummary";
 import { LandIntent, INTENT_OPTIONS } from "@/components/IntentSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -183,6 +184,10 @@ export default function MapExplorer() {
               selections={landSelections}
               onSelectionChange={handleLandSelectionChange}
             />
+            
+            <div className="mt-8">
+              <JobSummary selections={landSelections} />
+            </div>
           </Card>
         </div>
       </section>
