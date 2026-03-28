@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Bug } from "lucide-react";
 import MapDrawing from "@/components/MapDrawing";
+import LandSelectors, { VegetationDensity, TerrainType, AccessibilityLevel } from "@/components/LandSelectors";
 import { LandIntent, INTENT_OPTIONS } from "@/components/IntentSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -33,6 +34,9 @@ export default function MapExplorer() {
   const [selectedIntent] = useState<LandIntent | null>("evaluate");
   const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
   const [showDevTools, setShowDevTools] = useState(false);
+  const [vegetation, setVegetation] = useState<VegetationDensity | null>(null);
+  const [terrain, setTerrain] = useState<TerrainType | null>(null);
+  const [accessibility, setAccessibility] = useState<AccessibilityLevel | null>(null);
 
   // DEV TOOLS: Only accessible via Ctrl+Shift+D keyboard shortcut
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -93,8 +97,9 @@ export default function MapExplorer() {
           .insert({
             project_id: project.id,
             land_classification: {
-              vegetation: projectData.analysis.vegetation,
-              terrain: projectData.analysis.terrain,
+              vegetation: vegetation || projectData.analysis.vegetation,
+              terrain: terrain || projectData.analysis.terrain,
+              accessibility: accessibility,
               intent: projectData.intent,
             },
             hazards: projectData.analysis.hazards,
@@ -154,6 +159,31 @@ export default function MapExplorer() {
             />
           </CardContent>
         </Card>
+
+        {/* Land Property Selectors */}
+        <div className="pt-4">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
+              2
+            </span>
+            <div>
+              <h2 className="text-xl font-semibold">Refine details</h2>
+              <p className="text-sm text-muted-foreground">
+                Help us understand the land conditions for more accurate results.
+              </p>
+            </div>
+          </div>
+          <Card className="p-6">
+            <LandSelectors
+              vegetation={vegetation}
+              terrain={terrain}
+              accessibility={accessibility}
+              onVegetationChange={setVegetation}
+              onTerrainChange={setTerrain}
+              onAccessibilityChange={setAccessibility}
+            />
+          </Card>
+        </div>
       </section>
 
       {/* Create Project Dialog */}
