@@ -161,7 +161,7 @@ export default function MapExplorer() {
               readOnly={false} 
               onCreateProject={handleCreateProject}
               intent={selectedIntent}
-              autoAnalyze={true}
+              autoAnalyze={false}
             />
           </CardContent>
         </Card>

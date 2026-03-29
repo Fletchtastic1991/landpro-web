@@ -439,6 +439,8 @@ export default function MapDrawing({
   }, [currentPolygon, acreage, intent]);
 
   // Auto-analyze when boundary is drawn and autoAnalyze is enabled
+  // DISABLED: Now waiting for manual user toggle input
+  /*
   useEffect(() => {
     if (autoAnalyze && currentPolygon && acreage && !analysis && !isAnalyzing) {
       // Small delay to let the map settle
@@ -448,6 +450,7 @@ export default function MapDrawing({
       return () => clearTimeout(timer);
     }
   }, [autoAnalyze, currentPolygon, acreage, analysis, isAnalyzing, handleAnalyze]);
+  */
 
   const handleClear = () => {
     if (draw.current) {
