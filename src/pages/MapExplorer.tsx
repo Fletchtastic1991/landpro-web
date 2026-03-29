@@ -11,6 +11,7 @@ import { Loader2, Bug } from "lucide-react";
 import MapDrawing from "@/components/MapDrawing";
 import LandSelectors, { LandSelections, DEFAULT_LAND_SELECTIONS } from "@/components/LandSelectors";
 import JobSummary from "@/components/JobSummary";
+import JobReport from "@/components/JobReport";
 import { LandIntent, INTENT_OPTIONS } from "@/components/IntentSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -190,6 +191,24 @@ export default function MapExplorer() {
             </div>
           </Card>
         </div>
+
+        {/* Finalized Job Report Section */}
+        {acreage !== null && (
+          <div className="pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
+                3
+              </span>
+              <div>
+                <h2 className="text-xl font-semibold">Review Job Report</h2>
+                <p className="text-sm text-muted-foreground">
+                  Finalized snapshot of your property details and selected land conditions.
+                </p>
+              </div>
+            </div>
+            <JobReport acreage={acreage} selections={landSelections} />
+          </div>
+        )}
       </section>
 
       {/* Create Project Dialog */}
