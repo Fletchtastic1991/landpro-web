@@ -193,22 +193,20 @@ export default function MapExplorer() {
         </div>
 
         {/* Finalized Job Report Section */}
-        {acreage !== null && (
-          <div className="pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-3 mb-6">
-              <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
-                3
-              </span>
-              <div>
-                <h2 className="text-xl font-semibold">Review Job Report</h2>
-                <p className="text-sm text-muted-foreground">
-                  Finalized snapshot of your property details and selected land conditions.
-                </p>
-              </div>
+        <div className="pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="flex items-center gap-3 mb-6">
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
+              3
+            </span>
+            <div>
+              <h2 className="text-xl font-semibold">Review Job Report</h2>
+              <p className="text-sm text-muted-foreground">
+                Finalized snapshot of your property details and selected land conditions.
+              </p>
             </div>
-            <JobReport acreage={acreage} selections={landSelections} />
           </div>
-        )}
+          <JobReport acreage={acreage} selections={landSelections} />
+        </div>
       </section>
 
       {/* Create Project Dialog */}
