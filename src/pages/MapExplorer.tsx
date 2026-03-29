@@ -103,8 +103,8 @@ export default function MapExplorer() {
           .insert({
             project_id: project.id,
             land_classification: {
-              vegetation: landSelections.vegetation || projectData.analysis.vegetation,
-              terrain: landSelections.terrain || projectData.analysis.terrain,
+              vegetation: landSelections.vegetation,
+              terrain: landSelections.terrain,
               accessibility: landSelections.accessibility,
               intent: projectData.intent,
             },
