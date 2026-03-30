@@ -37,6 +37,7 @@ export default function MapExplorer() {
   const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
   const [showDevTools, setShowDevTools] = useState(false);
   const [landSelections, setLandSelections] = useState<LandSelections>(DEFAULT_LAND_SELECTIONS);
+  const [acreage, setAcreage] = useState<number | null>(null);
 
   const handleLandSelectionChange = (key: keyof LandSelections, value: string) => {
     setLandSelections(prev => ({
@@ -58,12 +59,13 @@ export default function MapExplorer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleCreateProject = (boundary: GeoJSON.Polygon, acreage: number, analysis?: any) => {
+  const handleCreateProject = (boundary: GeoJSON.Polygon, newAcreage: number, analysis?: any) => {
     const intentLabel = selectedIntent 
       ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label 
       : "";
-    setProjectData({ boundary, acreage, analysis, intent: selectedIntent || undefined });
-    setProjectName(`${intentLabel ? `${intentLabel} - ` : ""}${acreage} acres`);
+    setProjectData({ boundary, acreage: newAcreage, analysis, intent: selectedIntent || undefined });
+    setAcreage(newAcreage);
+    setProjectName(`${intentLabel ? `${intentLabel} - ` : ""}${newAcreage} acres`);
     setProjectDescription(analysis?.summary || "");
     setShowCreateDialog(true);
   };
