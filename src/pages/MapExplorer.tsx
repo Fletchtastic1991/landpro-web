@@ -37,7 +37,13 @@ export default function MapExplorer() {
   const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
   const [showDevTools, setShowDevTools] = useState(false);
   const [landSelections, setLandSelections] = useState<LandSelections>(DEFAULT_LAND_SELECTIONS);
-  const [acreage, setAcreage] = useState<number | null>(null);
+  const [propertyData, setPropertyData] = useState<{
+    acreage: number | null;
+    squareMeters: number | null;
+  }>({
+    acreage: null,
+    squareMeters: null
+  });
 
   const handleLandSelectionChange = (key: keyof LandSelections, value: string) => {
     setLandSelections(prev => ({
@@ -64,7 +70,8 @@ export default function MapExplorer() {
       ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label 
       : "";
     setProjectData({ boundary, acreage: newAcreage, analysis, intent: selectedIntent || undefined });
-    setAcreage(newAcreage);
+    // acreage is already updated via onAcreageChange, but we ensure consistency here
+    setPropertyData(prev => ({ ...prev, acreage: newAcreage }));
     setProjectName(`${intentLabel ? `${intentLabel} - ` : ""}${newAcreage} acres`);
     setProjectDescription(analysis?.summary || "");
     setShowCreateDialog(true);
@@ -163,6 +170,7 @@ export default function MapExplorer() {
             <MapDrawing 
               readOnly={false} 
               onCreateProject={handleCreateProject}
+              onAcreageChange={(acreage, squareMeters) => setPropertyData({ acreage, squareMeters })}
               intent={selectedIntent}
               autoAnalyze={false}
             />
@@ -207,7 +215,7 @@ export default function MapExplorer() {
               </p>
             </div>
           </div>
-          <JobReport acreage={acreage} selections={landSelections} />
+          <JobReport propertyData={propertyData} selections={landSelections} />
         </div>
       </section>
 

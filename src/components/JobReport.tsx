@@ -5,12 +5,15 @@ import { cn } from "@/lib/utils";
 import { Calendar, Ruler, Leaf, Mountain, MapPin } from "lucide-react";
 
 interface JobReportProps {
-  acreage: number | null;
+  propertyData: {
+    acreage: number | null;
+    squareMeters: number | null;
+  };
   selections: LandSelections;
   className?: string;
 }
 
-const JobReport: React.FC<JobReportProps> = ({ acreage, selections, className }) => {
+const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, className }) => {
   const timestamp = new Date().toLocaleString();
 
   const formatValue = (value: string) => {
@@ -45,7 +48,7 @@ const JobReport: React.FC<JobReportProps> = ({ acreage, selections, className })
           <ReportItem 
             icon={Ruler} 
             label="Property Size" 
-            value={acreage !== null ? `${acreage} Acres` : "Not defined"} 
+            value={propertyData.acreage !== null ? `${propertyData.acreage} Acres` : "Not defined"} 
             colorClass="bg-blue-500/10 text-blue-600"
           />
           <ReportItem 

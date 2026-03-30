@@ -65,6 +65,7 @@ interface MapDrawingProps {
   initialAcreage?: number | null;
   onSave?: (boundary: GeoJSON.Polygon, acreage: number) => Promise<void>;
   onCreateProject?: (boundary: GeoJSON.Polygon, acreage: number, analysis?: LandAnalysis) => void;
+  onAcreageChange?: (acreage: number | null, squareMeters: number | null) => void;
   readOnly?: boolean;
   intent?: LandIntent | null;
   autoAnalyze?: boolean;
@@ -75,6 +76,7 @@ export default function MapDrawing({
   initialAcreage,
   onSave,
   onCreateProject,
+  onAcreageChange,
   readOnly = false,
   intent = null,
   autoAnalyze = false,
@@ -105,7 +107,10 @@ export default function MapDrawing({
   const calculateArea = useCallback((polygon: GeoJSON.Polygon) => {
     const area = turf.area(polygon);
     const acres = area * 0.000247105;
-    return Math.round(acres * 100) / 100;
+    return {
+      acres: Math.round(acres * 100) / 100,
+      sqm: Math.round(area * 100) / 100
+    };
   }, []);
 
   const updateArea = useCallback((fromParcel = false) => {
@@ -114,8 +119,9 @@ export default function MapDrawing({
     const data = draw.current.getAll();
     if (data.features.length > 0) {
       const polygon = data.features[0].geometry as GeoJSON.Polygon;
-      const acres = calculateArea(polygon);
-      setAcreage(acres);
+      const areaInfo = calculateArea(polygon);
+      setAcreage(areaInfo.acres);
+      if (onAcreageChange) onAcreageChange(areaInfo.acres, areaInfo.sqm);
       setCurrentPolygon(polygon);
       setHasChanges(true);
       setAnalysis(null);
@@ -126,11 +132,12 @@ export default function MapDrawing({
       }
     } else {
       setAcreage(null);
+      if (onAcreageChange) onAcreageChange(null, null);
       setCurrentPolygon(null);
       setParcelSource(null);
       setParcelMessage(null);
     }
-  }, [calculateArea]);
+  }, [calculateArea, onAcreageChange]);
 
   // Fetch parcel boundary from coordinates
   const fetchParcelBoundary = useCallback(async (lng: number, lat: number) => {
@@ -167,8 +174,9 @@ export default function MapDrawing({
         });
 
         // Update area and set source
-        const acres = calculateArea(data.parcel);
-        setAcreage(acres);
+        const areaInfo = calculateArea(data.parcel);
+        setAcreage(areaInfo.acres);
+        if (onAcreageChange) onAcreageChange(areaInfo.acres, areaInfo.sqm);
         setCurrentPolygon(data.parcel);
         setHasChanges(true);
         setParcelSource('osm');
@@ -192,6 +200,7 @@ export default function MapDrawing({
         // Don't show acreage until user draws boundary
         setParcelSource(null);
         setAcreage(null);
+        if (onAcreageChange) onAcreageChange(null, null);
         setCurrentPolygon(null);
         setParcelMessage(null);
         toast("Define your property boundary", {
@@ -205,6 +214,7 @@ export default function MapDrawing({
       });
       setParcelSource(null);
       setAcreage(null);
+      if (onAcreageChange) onAcreageChange(null, null);
       setCurrentPolygon(null);
     } finally {
       setIsFetchingParcel(false);
@@ -456,6 +466,7 @@ export default function MapDrawing({
     if (draw.current) {
       draw.current.deleteAll();
       setAcreage(null);
+      if (onAcreageChange) onAcreageChange(null, null);
       setCurrentPolygon(null);
       setHasChanges(false);
       setAnalysis(null);
