@@ -7,12 +7,9 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Loader2, Save, Trash2, Maximize2, Brain, Leaf, Mountain, Wrench, DollarSign, AlertTriangle, Users, ArrowRight, MapPin } from "lucide-react";
-import AnalysisDisclaimer from "@/components/AnalysisDisclaimer";
-import DecisionSummary from "@/components/DecisionSummary";
+import { Loader2, Save, Trash2, Maximize2, MapPin } from "lucide-react";
 
 const MAP_STYLES = {
   satellite: { id: "mapbox://styles/mapbox/satellite-streets-v12", label: "Satellite" },
@@ -27,48 +24,16 @@ import { toast } from "sonner";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || "pk.eyJ1IjoiZmxldGNodGFzdGljMTk5MSIsImEiOiJjbWlxNnNjajUwamI2M2VvdmFmbGQ5NTlsIn0.hIurrjB3WXifVT10VgKXRA";
 
-interface LandAnalysis {
-  vegetation: {
-    type: string;
-    density: string;
-    recommendations: string[];
-  };
-  terrain: {
-    type: string;
-    slope_estimate: string;
-    drainage: string;
-    recommendations: string[];
-  };
-  equipment: {
-    recommended: string[];
-    considerations: string[];
-  };
-  labor: {
-    estimated_crew_size: number;
-    estimated_hours: number;
-    difficulty: string;
-  };
-  hazards: string[];
-  cost_factors: {
-    base_rate_per_acre: number;
-    estimated_total: number;
-    factors_affecting_cost: string[];
-  };
-  next_steps?: string[];
-  summary: string;
-}
-
 import type { LandIntent } from "@/components/IntentSelector";
 
 interface MapDrawingProps {
   initialBoundary?: GeoJSON.Polygon | null;
   initialAcreage?: number | null;
   onSave?: (boundary: GeoJSON.Polygon, acreage: number) => Promise<void>;
-  onCreateProject?: (boundary: GeoJSON.Polygon, acreage: number, analysis?: LandAnalysis) => void;
+  onCreateProject?: (boundary: GeoJSON.Polygon, acreage: number) => void;
   onAcreageChange?: (acreage: number | null, squareMeters: number | null) => void;
   readOnly?: boolean;
   intent?: LandIntent | null;
-  autoAnalyze?: boolean;
 }
 
 export default function MapDrawing({
@@ -79,7 +44,6 @@ export default function MapDrawing({
   onAcreageChange,
   readOnly = false,
   intent = null,
-  autoAnalyze = false,
 }: MapDrawingProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -87,12 +51,9 @@ export default function MapDrawing({
   const geocoderRef = useRef<MapboxGeocoder | null>(null);
   const [acreage, setAcreage] = useState<number | null>(initialAcreage ?? null);
   const [isSaving, setIsSaving] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isFetchingParcel, setIsFetchingParcel] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [currentPolygon, setCurrentPolygon] = useState<GeoJSON.Polygon | null>(null);
-  const [analysis, setAnalysis] = useState<LandAnalysis | null>(null);
-  const [showAnalysis, setShowAnalysis] = useState(false);
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("satellite");
   const [parcelSource, setParcelSource] = useState<'osm' | 'estimated' | 'manual' | null>(null);
   const [parcelMessage, setParcelMessage] = useState<string | null>(null);
@@ -124,8 +85,6 @@ export default function MapDrawing({
       if (onAcreageChange) onAcreageChange(areaInfo.acres, areaInfo.sqm);
       setCurrentPolygon(polygon);
       setHasChanges(true);
-      setAnalysis(null);
-      setShowAnalysis(false);
       if (!fromParcel) {
         setParcelSource('manual');
         setParcelMessage(null);
@@ -152,10 +111,11 @@ export default function MapDrawing({
       if (error) {
         console.error('Parcel fetch error:', error);
         toast("Define your property boundary", {
-          description: "Use the polygon tool to outline the land you want analyzed."
+          description: "Use the polygon tool to outline the land you want."
         });
         setParcelSource(null);
         setAcreage(null);
+        if (onAcreageChange) onAcreageChange(null, null);
         setCurrentPolygon(null);
         return;
       }
@@ -181,8 +141,6 @@ export default function MapDrawing({
         setHasChanges(true);
         setParcelSource('osm');
         setParcelMessage(data.message);
-        setAnalysis(null);
-        setShowAnalysis(false);
 
         // Fit bounds to the parcel
         const bounds = turf.bbox(data.parcel);
@@ -197,20 +155,19 @@ export default function MapDrawing({
         toast.success("Property boundary found!");
       } else {
         // No verified parcel available - prompt user to draw manually
-        // Don't show acreage until user draws boundary
         setParcelSource(null);
         setAcreage(null);
         if (onAcreageChange) onAcreageChange(null, null);
         setCurrentPolygon(null);
         setParcelMessage(null);
         toast("Define your property boundary", {
-          description: "Draw the exact area you want analyzed for the most accurate results."
+          description: "Draw the exact area you want for the most accurate results."
         });
       }
     } catch (err) {
       console.error('Error fetching parcel:', err);
       toast("Define your property boundary", {
-        description: "Use the polygon tool to outline the land you want analyzed."
+        description: "Use the polygon tool to outline the land you want."
       });
       setParcelSource(null);
       setAcreage(null);
@@ -219,7 +176,7 @@ export default function MapDrawing({
     } finally {
       setIsFetchingParcel(false);
     }
-  }, [calculateArea]);
+  }, [calculateArea, onAcreageChange]);
 
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
@@ -327,140 +284,51 @@ export default function MapDrawing({
 
       map.current.addControl(draw.current, "top-left");
 
-      map.current.on("draw.create", () => updateArea(false));
-      map.current.on("draw.update", () => updateArea(false));
-      map.current.on("draw.delete", () => {
-        setAcreage(null);
-        setCurrentPolygon(null);
-        setHasChanges(false);
-        setAnalysis(null);
-        setShowAnalysis(false);
-        setParcelSource(null);
-        setParcelMessage(null);
-      });
+      map.current.on("draw.create", () => updateArea());
+      map.current.on("draw.update", () => updateArea());
+      map.current.on("draw.delete", () => updateArea());
     }
 
-
-    map.current.on("load", () => {
-      if (initialBoundary && map.current) {
-        if (readOnly) {
-          map.current.addSource("boundary", {
-            type: "geojson",
-            data: {
-              type: "Feature",
-              properties: {},
-              geometry: initialBoundary,
-            },
-          });
-
-          map.current.addLayer({
-            id: "boundary-fill",
-            type: "fill",
-            source: "boundary",
-            paint: {
-              "fill-color": "#22c55e",
-              "fill-opacity": 0.3,
-            },
-          });
-
-          map.current.addLayer({
-            id: "boundary-line",
-            type: "line",
-            source: "boundary",
-            paint: {
-              "line-color": "#16a34a",
-              "line-width": 3,
-            },
-          });
-        } else if (draw.current) {
-          draw.current.add({
-            type: "Feature",
-            properties: {},
-            geometry: initialBoundary,
-          });
-        }
-
+    // Set initial boundary if provided
+    map.current.on('load', () => {
+      if (initialBoundary && draw.current) {
+        draw.current.add({
+          type: 'Feature',
+          properties: {},
+          geometry: initialBoundary,
+        });
+        
         const bounds = turf.bbox(initialBoundary);
-        map.current.fitBounds(
+        map.current?.fitBounds(
           [
             [bounds[0], bounds[1]],
             [bounds[2], bounds[3]],
           ],
-          { padding: 50, maxZoom: 16 }
+          { padding: 50, animate: false }
         );
-
-        if (initialAcreage) {
-          setAcreage(initialAcreage);
-        }
       }
     });
 
     return () => {
       map.current?.remove();
-      map.current = null;
     };
-  }, [initialBoundary, initialAcreage, readOnly, updateArea, fetchParcelBoundary]);
+  }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary]);
 
   const handleSave = async () => {
-    if (!currentPolygon || !onSave || !acreage) return;
-    
+    if (!onSave || !currentPolygon || !acreage) return;
+
     setIsSaving(true);
     try {
       await onSave(currentPolygon, acreage);
       setHasChanges(false);
+      toast.success("Boundary saved successfully!");
+    } catch (err) {
+      console.error('Save error:', err);
+      toast.error("Failed to save boundary");
     } finally {
       setIsSaving(false);
     }
   };
-
-  const handleAnalyze = useCallback(async () => {
-    if (!currentPolygon || !acreage) {
-      toast.error("Please draw a boundary first");
-      return;
-    }
-
-    setIsAnalyzing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('analyze-land', {
-        body: { 
-          boundary: currentPolygon, 
-          acreage,
-          intent: intent || undefined
-        }
-      });
-
-      if (error) {
-        console.error('Analysis error:', error);
-        toast.error(error.message || "Failed to analyze land");
-        return;
-      }
-
-      if (data?.analysis) {
-        setAnalysis(data.analysis);
-        setShowAnalysis(true);
-        toast.success("Land analysis complete!");
-      }
-    } catch (err) {
-      console.error('Analysis error:', err);
-      toast.error("Failed to analyze land");
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [currentPolygon, acreage, intent]);
-
-  // Auto-analyze when boundary is drawn and autoAnalyze is enabled
-  // DISABLED: Now waiting for manual user toggle input
-  /*
-  useEffect(() => {
-    if (autoAnalyze && currentPolygon && acreage && !analysis && !isAnalyzing) {
-      // Small delay to let the map settle
-      const timer = setTimeout(() => {
-        handleAnalyze();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [autoAnalyze, currentPolygon, acreage, analysis, isAnalyzing, handleAnalyze]);
-  */
 
   const handleClear = () => {
     if (draw.current) {
@@ -469,8 +337,6 @@ export default function MapDrawing({
       if (onAcreageChange) onAcreageChange(null, null);
       setCurrentPolygon(null);
       setHasChanges(false);
-      setAnalysis(null);
-      setShowAnalysis(false);
     }
   };
 
@@ -487,24 +353,6 @@ export default function MapDrawing({
         ],
         { padding: 50, maxZoom: 16 }
       );
-    }
-  };
-
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty.toLowerCase()) {
-      case 'easy': return 'bg-green-500/20 text-green-700';
-      case 'moderate': return 'bg-yellow-500/20 text-yellow-700';
-      case 'challenging': return 'bg-red-500/20 text-red-700';
-      default: return 'bg-muted text-muted-foreground';
-    }
-  };
-
-  const getDensityColor = (density: string) => {
-    switch (density.toLowerCase()) {
-      case 'low': return 'bg-green-500/20 text-green-700';
-      case 'medium': return 'bg-yellow-500/20 text-yellow-700';
-      case 'high': return 'bg-red-500/20 text-red-700';
-      default: return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -618,20 +466,6 @@ export default function MapDrawing({
               <Trash2 className="h-4 w-4 mr-1" />
               Clear
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleAnalyze}
-              disabled={!currentPolygon || isAnalyzing}
-              className="bg-primary/10 hover:bg-primary/20 border-primary/30"
-            >
-              {isAnalyzing ? (
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-              ) : (
-                <Brain className="h-4 w-4 mr-1" />
-              )}
-              AI Analysis
-            </Button>
             {onSave && (
               <Button
                 size="sm"
@@ -646,10 +480,10 @@ export default function MapDrawing({
                 Save Boundary
               </Button>
             )}
-            {onCreateProject && currentPolygon && acreage && !showAnalysis && (
+            {onCreateProject && currentPolygon && acreage && (
               <Button
                 size="sm"
-                onClick={() => onCreateProject(currentPolygon, acreage, analysis || undefined)}
+                onClick={() => onCreateProject(currentPolygon, acreage)}
               >
                 Create Project
               </Button>
@@ -660,7 +494,7 @@ export default function MapDrawing({
         {/* Instructions */}
         {!readOnly && !currentPolygon && !isFetchingParcel && (
           <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border max-w-sm">
-            <p className="text-sm font-medium text-foreground mb-1">You decide what land gets analyzed</p>
+            <p className="text-sm font-medium text-foreground mb-1">Define your land area</p>
             <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">Search an address</span> to find your property, or{" "}
               <span className="font-medium text-foreground">draw your boundary</span> with the polygon tool for exact precision.
@@ -678,236 +512,6 @@ export default function MapDrawing({
           </div>
         )}
       </div>
-
-      {/* Analysis Panel - Below the map, full width continuation */}
-      {showAnalysis && analysis && (
-        <div className="border-t bg-background px-4 py-10 sm:px-6 lg:px-8 animate-in fade-in duration-300">
-          <div className="max-w-5xl mx-auto space-y-10">
-            {/* Analysis Header */}
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-primary/10 flex-shrink-0">
-                  <Brain className="h-7 w-7 text-primary" />
-                </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-semibold tracking-tight">Land Clearing Assessment</h3>
-                  <p className="text-base text-muted-foreground leading-relaxed max-w-2xl">{analysis.summary}</p>
-                  <p className="text-xs text-muted-foreground/70 mt-1">Analysis is based on mapped boundaries and available data.</p>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setShowAnalysis(false)} className="flex-shrink-0">
-                Collapse
-              </Button>
-            </div>
-
-            {/* Analysis Grid - Responsive layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {/* Vegetation */}
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Leaf className="h-5 w-5 text-green-600" />
-                    Vegetation
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pb-4 px-5 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{analysis.vegetation.type}</span>
-                    <Badge className={getDensityColor(analysis.vegetation.density)}>
-                      {analysis.vegetation.density} density
-                    </Badge>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1.5">
-                    {analysis.vegetation.recommendations.map((rec, i) => (
-                      <li key={i} className="leading-relaxed">• {rec}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Terrain */}
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Mountain className="h-5 w-5 text-amber-600" />
-                    Terrain
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pb-4 px-5 space-y-3">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium">{analysis.terrain.type}</span>
-                    <Badge variant="outline">{analysis.terrain.slope_estimate} slope</Badge>
-                    <Badge variant="outline">{analysis.terrain.drainage} drainage</Badge>
-                  </div>
-                  <ul className="text-sm text-muted-foreground space-y-1.5">
-                    {analysis.terrain.recommendations.map((rec, i) => (
-                      <li key={i} className="leading-relaxed">• {rec}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Equipment */}
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Wrench className="h-5 w-5 text-blue-600" />
-                    Equipment
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pb-4 px-5 space-y-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {analysis.equipment.recommended.map((eq, i) => (
-                      <Badge key={i} variant="secondary">{eq}</Badge>
-                    ))}
-                  </div>
-                  <p className="text-xs text-muted-foreground/70">Common equipment examples. Contractors may use different methods or equipment.</p>
-                  <ul className="text-sm text-muted-foreground space-y-1.5">
-                    {analysis.equipment.considerations.map((con, i) => (
-                      <li key={i} className="leading-relaxed">• {con}</li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-
-              {/* Labor */}
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="h-5 w-5 text-purple-600" />
-                    Labor Estimate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pb-4 px-5">
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <div className="text-2xl font-bold">{analysis.labor.estimated_crew_size}</div>
-                      <div className="text-sm text-muted-foreground">Crew Size</div>
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold">{analysis.labor.estimated_hours}</div>
-                      <div className="text-sm text-muted-foreground">Hours</div>
-                    </div>
-                    <div>
-                      <Badge className={getDifficultyColor(analysis.labor.difficulty)}>
-                        {analysis.labor.difficulty}
-                      </Badge>
-                      <div className="text-sm text-muted-foreground mt-1">Difficulty</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Cost Estimate */}
-              <Card className="shadow-sm">
-                <CardHeader className="pb-2 pt-4 px-5">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <DollarSign className="h-5 w-5 text-green-600" />
-                    Cost Estimate
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pb-4 px-5 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Base rate/acre:</span>
-                    <span className="font-medium">${analysis.cost_factors.base_rate_per_acre}</span>
-                  </div>
-                  <div className="flex items-center justify-between border-t pt-3">
-                    <span className="font-medium">Estimated Total:</span>
-                    <span className="text-xl font-bold text-primary">
-                      ${analysis.cost_factors.estimated_total.toLocaleString()}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground/70">Actual costs vary by contractor, access, and disposal method.</p>
-                  <div className="text-sm text-muted-foreground">
-                    <span className="font-medium">Cost factors:</span>
-                    <ul className="mt-1.5 space-y-1">
-                      {analysis.cost_factors.factors_affecting_cost.map((factor, i) => (
-                        <li key={i} className="leading-relaxed">• {factor}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Hazards */}
-              {analysis.hazards.length > 0 && (
-                <Card className="border-amber-500/30 bg-amber-500/5 shadow-sm">
-                  <CardHeader className="pb-2 pt-4 px-5">
-                    <CardTitle className="text-base flex items-center gap-2 text-amber-700">
-                      <AlertTriangle className="h-5 w-5" />
-                      Potential Hazards
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pb-4 px-5">
-                    <ul className="text-sm space-y-2">
-                      {analysis.hazards.map((hazard, i) => (
-                        <li key={i} className="flex items-start gap-2 leading-relaxed text-muted-foreground">
-                          <span className="text-amber-600 flex-shrink-0">•</span>
-                          {hazard}
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-
-            {/* Next Steps - Full width, prominent placement */}
-            {analysis.next_steps && analysis.next_steps.length > 0 && (
-              <Card className="border-primary/30 bg-primary/5 shadow-sm">
-                <CardHeader className="pb-3 pt-5 px-5">
-                  <CardTitle className="text-lg flex items-center gap-2 text-primary">
-                    <ArrowRight className="h-5 w-5" />
-                    Recommended Next Steps (Before Hiring)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="pb-5 px-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {analysis.next_steps.map((step, i) => (
-                      <div key={i} className="flex items-start gap-3 p-4 rounded-lg bg-background/60 border border-primary/10">
-                        <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center">
-                          {i + 1}
-                        </span>
-                        <span className="text-sm leading-relaxed">{step}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Decision Summary Layer */}
-            <DecisionSummary analysis={analysis} acreage={acreage} parcelId={undefined} />
-
-            {/* Informational Disclaimer */}
-            <AnalysisDisclaimer />
-
-            {/* Save Project CTA */}
-            {onCreateProject && currentPolygon && acreage && (
-              <div className="flex justify-center pt-6 pb-10">
-                <Button
-                  size="lg"
-                  onClick={() => onCreateProject(currentPolygon, acreage, analysis)}
-                  className="gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  Save This Analysis
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Show Analysis Button when collapsed */}
-      {analysis && !showAnalysis && (
-        <div className="border-t bg-muted/30 p-4 flex items-center justify-center">
-          <Button onClick={() => setShowAnalysis(true)} className="gap-2">
-            <Brain className="h-4 w-4" />
-            View Land Analysis
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

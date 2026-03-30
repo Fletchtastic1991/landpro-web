@@ -20,7 +20,6 @@ import { toast } from "sonner";
 interface ProjectData {
   boundary: GeoJSON.Polygon;
   acreage: number;
-  analysis?: any;
   intent?: LandIntent;
 }
 
@@ -65,15 +64,15 @@ export default function MapExplorer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const handleCreateProject = (boundary: GeoJSON.Polygon, newAcreage: number, analysis?: any) => {
+  const handleCreateProject = (boundary: GeoJSON.Polygon, newAcreage: number) => {
     const intentLabel = selectedIntent 
       ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label 
       : "";
-    setProjectData({ boundary, acreage: newAcreage, analysis, intent: selectedIntent || undefined });
+    setProjectData({ boundary, acreage: newAcreage, intent: selectedIntent || undefined });
     // acreage is already updated via onAcreageChange, but we ensure consistency here
     setPropertyData(prev => ({ ...prev, acreage: newAcreage }));
     setProjectName(`${intentLabel ? `${intentLabel} - ` : ""}${newAcreage} acres`);
-    setProjectDescription(analysis?.summary || "");
+    setProjectDescription("");
     setShowCreateDialog(true);
   };
 
@@ -106,8 +105,8 @@ export default function MapExplorer() {
 
       if (projectError) throw projectError;
 
-      // If we have analysis data, save it
-      if (projectData.analysis && project) {
+      // Save the manual selections as the "analysis" record
+      if (project) {
         const { error: analysisError } = await supabase
           .from('analysis')
           .insert({
@@ -118,16 +117,16 @@ export default function MapExplorer() {
               accessibility: landSelections.accessibility,
               intent: projectData.intent,
             },
-            hazards: projectData.analysis.hazards,
+            hazards: [],
             path: {
-              equipment: projectData.analysis.equipment,
-              labor: projectData.analysis.labor,
-              cost_factors: projectData.analysis.cost_factors,
+              equipment: [],
+              labor: {},
+              cost_factors: {},
             }
           });
 
         if (analysisError) {
-          console.error('Failed to save analysis:', analysisError);
+          console.error('Failed to save project details:', analysisError);
         }
       }
 
@@ -146,13 +145,13 @@ export default function MapExplorer() {
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto">
       {/* Hero Header */}
       <div className="text-center space-y-3 pb-2">
-        <h1 className="text-4xl font-bold tracking-tight">Analyze Your Land</h1>
+        <h1 className="text-4xl font-bold tracking-tight">Land Property Explorer</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-          Find your property and get AI-powered insights in under 2 minutes.
+          Define your property and specify land conditions for your next project.
         </p>
       </div>
 
-      {/* Map and Analysis */}
+      {/* Map and Details */}
       <section className="space-y-4">
         <div className="flex items-center gap-3">
           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
@@ -161,7 +160,7 @@ export default function MapExplorer() {
           <div>
             <h2 className="text-xl font-semibold">Find your property</h2>
             <p className="text-sm text-muted-foreground">
-              Search for an address, then draw your boundary. Analysis starts automatically.
+              Search for an address, then draw your boundary to calculate the area.
             </p>
           </div>
         </div>
@@ -172,7 +171,6 @@ export default function MapExplorer() {
               onCreateProject={handleCreateProject}
               onAcreageChange={(acreage, squareMeters) => setPropertyData({ acreage, squareMeters })}
               intent={selectedIntent}
-              autoAnalyze={false}
             />
           </CardContent>
         </Card>
@@ -186,7 +184,7 @@ export default function MapExplorer() {
             <div>
               <h2 className="text-xl font-semibold">Refine details</h2>
               <p className="text-sm text-muted-foreground">
-                Help us understand the land conditions for more accurate results.
+                Specify the land conditions to help with project planning.
               </p>
             </div>
           </div>
@@ -223,9 +221,9 @@ export default function MapExplorer() {
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save This Analysis</DialogTitle>
+            <DialogTitle>Save Project</DialogTitle>
             <DialogDescription>
-              Save your analysis for future reference. 
+              Save your property details and selections for future reference. 
               {projectData?.acreage && ` Area: ${projectData.acreage} acres`}
             </DialogDescription>
           </DialogHeader>
@@ -249,14 +247,6 @@ export default function MapExplorer() {
                 rows={3}
               />
             </div>
-            {projectData?.analysis && (
-              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg text-sm">
-                <span className="font-medium text-primary">Analysis included</span>
-                <span className="text-muted-foreground ml-2">
-                  — vegetation, terrain, equipment, and cost estimates
-                </span>
-              </div>
-            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
