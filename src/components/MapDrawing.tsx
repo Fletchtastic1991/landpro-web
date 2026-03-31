@@ -183,13 +183,21 @@ export default function MapDrawing({
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
+    console.log("Initializing Mapbox map...");
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/satellite-streets-v12",
       center: [-98.5795, 39.8283],
       zoom: 4,
       pitch: 0,
+      trackResize: true,
     });
+
+    // Ensure map resizes correctly when container size changes
+    const resizeObserver = new ResizeObserver(() => {
+      map.current?.resize();
+    });
+    resizeObserver.observe(mapContainer.current);
 
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
     map.current.addControl(new mapboxgl.ScaleControl(), "bottom-left");
@@ -310,7 +318,9 @@ export default function MapDrawing({
     });
 
     return () => {
+      resizeObserver.disconnect();
       map.current?.remove();
+      map.current = null;
     };
   }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary]);
 
@@ -359,8 +369,12 @@ export default function MapDrawing({
   return (
     <div className="flex flex-col w-full">
       {/* Map Container - Always full width, primary surface */}
-      <div className="relative h-[600px] min-h-[400px]">
-        <div ref={mapContainer} className="absolute inset-0 rounded-lg" />
+      <div className="relative h-[600px] min-h-[400px] w-full overflow-hidden rounded-lg border">
+        <div 
+          ref={mapContainer} 
+          className="absolute inset-0 h-full w-full" 
+          style={{ minHeight: '400px' }}
+        />
         
         {/* Imagery Recency Notice */}
         <div className="absolute bottom-4 right-4 z-10">
