@@ -57,6 +57,7 @@ export default function MapDrawing({
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("satellite");
   const [parcelSource, setParcelSource] = useState<'osm' | 'estimated' | 'manual' | null>(null);
   const [parcelMessage, setParcelMessage] = useState<string | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleStyleChange = useCallback((style: MapStyleKey) => {
     if (!map.current || !style) return;
@@ -227,6 +228,9 @@ export default function MapDrawing({
       const [lng, lat] = e.result.center;
       console.log('Geocoder result:', e.result.place_name, lng, lat);
       
+      // Mark as searched to prevent snap-back
+      setHasSearched(true);
+      
       // Auto-fetch parcel boundary when address is found
       if (!readOnly) {
         fetchParcelBoundary(lng, lat);
@@ -292,28 +296,37 @@ export default function MapDrawing({
 
       map.current.addControl(draw.current, "top-left");
 
-      map.current.on("draw.create", () => updateArea());
-      map.current.on("draw.update", () => updateArea());
+      map.current.on("draw.create", () => {
+        setHasSearched(true);
+        updateArea();
+      });
+      map.current.on("draw.update", () => {
+        setHasSearched(true);
+        updateArea();
+      });
       map.current.on("draw.delete", () => updateArea());
     }
 
     // Set initial boundary if provided
     map.current.on('load', () => {
-      if (initialBoundary && draw.current) {
-        draw.current.add({
-          type: 'Feature',
-          properties: {},
-          geometry: initialBoundary,
-        });
-        
-        const bounds = turf.bbox(initialBoundary);
-        map.current?.fitBounds(
-          [
-            [bounds[0], bounds[1]],
-            [bounds[2], bounds[3]],
-          ],
-          { padding: 50, animate: false }
-        );
+      // ONLY run default/initial positioning if the user hasn't searched or interacted yet
+      if (!hasSearched) {
+        if (initialBoundary && draw.current) {
+          draw.current.add({
+            type: 'Feature',
+            properties: {},
+            geometry: initialBoundary,
+          });
+          
+          const bounds = turf.bbox(initialBoundary);
+          map.current?.fitBounds(
+            [
+              [bounds[0], bounds[1]],
+              [bounds[2], bounds[3]],
+            ],
+            { padding: 50, animate: false }
+          );
+        }
       }
     });
 
@@ -322,7 +335,7 @@ export default function MapDrawing({
       map.current?.remove();
       map.current = null;
     };
-  }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary]);
+  }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary, hasSearched]);
 
   const handleSave = async () => {
     if (!onSave || !currentPolygon || !acreage) return;
