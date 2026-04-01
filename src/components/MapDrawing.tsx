@@ -36,6 +36,8 @@ interface MapDrawingProps {
   intent?: LandIntent | null;
 }
 
+type MapMode = "default" | "user-location" | "search" | "boundary";
+
 export default function MapDrawing({
   initialBoundary,
   initialAcreage,
@@ -57,7 +59,7 @@ export default function MapDrawing({
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("satellite");
   const [parcelSource, setParcelSource] = useState<'osm' | 'estimated' | 'manual' | null>(null);
   const [parcelMessage, setParcelMessage] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [mapMode, setMapMode] = useState<MapMode>("default");
 
   const handleStyleChange = useCallback((style: MapStyleKey) => {
     if (!map.current || !style) return;
@@ -90,6 +92,8 @@ export default function MapDrawing({
         setParcelSource('manual');
         setParcelMessage(null);
       }
+      // Update mode to boundary to protect the view
+      setMapMode("boundary");
     } else {
       setAcreage(null);
       if (onAcreageChange) onAcreageChange(null, null);
@@ -142,6 +146,9 @@ export default function MapDrawing({
         setHasChanges(true);
         setParcelSource('osm');
         setParcelMessage(data.message);
+
+        // Update mode to boundary
+        setMapMode("boundary");
 
         // Fit bounds to the parcel
         const bounds = turf.bbox(data.parcel);
@@ -202,18 +209,25 @@ export default function MapDrawing({
 
     map.current.addControl(new mapboxgl.NavigationControl(), "top-right");
     map.current.addControl(new mapboxgl.ScaleControl(), "bottom-left");
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: false,
-        showUserHeading: false,
-      }),
-      "top-right"
-    );
+    
+    const geolocate = new mapboxgl.GeolocateControl({
+      positionOptions: { enableHighAccuracy: true },
+      trackUserLocation: false,
+      showUserHeading: false,
+    });
+    map.current.addControl(geolocate, "top-right");
+
+    // Handle user location success with mapMode check
+    geolocate.on('geolocate', () => {
+      setMapMode(prev => {
+        if (prev === "default") return "user-location";
+        return prev;
+      });
+    });
 
     const geocoder = new MapboxGeocoder({
       accessToken: MAPBOX_TOKEN,
-      marker: false, // We'll handle the marker ourselves
+      marker: false,
       placeholder: "Search for an address or location...",
       flyTo: {
         speed: 1.5,
@@ -223,13 +237,13 @@ export default function MapDrawing({
     geocoderRef.current = geocoder;
     map.current.addControl(geocoder, "top-left");
 
-    // Listen for geocoder results to auto-fetch parcel
+    // Listen for geocoder results
     geocoder.on('result', (e: { result: { center: [number, number]; place_name?: string } }) => {
       const [lng, lat] = e.result.center;
       console.log('Geocoder result:', e.result.place_name, lng, lat);
       
-      // Mark as searched to prevent snap-back
-      setHasSearched(true);
+      // Enforce search mode
+      setMapMode("search");
       
       // Auto-fetch parcel boundary when address is found
       if (!readOnly) {
@@ -296,37 +310,29 @@ export default function MapDrawing({
 
       map.current.addControl(draw.current, "top-left");
 
-      map.current.on("draw.create", () => {
-        setHasSearched(true);
-        updateArea();
-      });
-      map.current.on("draw.update", () => {
-        setHasSearched(true);
-        updateArea();
-      });
+      map.current.on("draw.create", () => updateArea());
+      map.current.on("draw.update", () => updateArea());
       map.current.on("draw.delete", () => updateArea());
     }
 
-    // Set initial boundary if provided
+    // Handle initial positioning ONLY if mode is default
     map.current.on('load', () => {
-      // ONLY run default/initial positioning if the user hasn't searched or interacted yet
-      if (!hasSearched) {
-        if (initialBoundary && draw.current) {
-          draw.current.add({
-            type: 'Feature',
-            properties: {},
-            geometry: initialBoundary,
-          });
-          
-          const bounds = turf.bbox(initialBoundary);
-          map.current?.fitBounds(
-            [
-              [bounds[0], bounds[1]],
-              [bounds[2], bounds[3]],
-            ],
-            { padding: 50, animate: false }
-          );
-        }
+      if (mapMode === "default" && initialBoundary && draw.current) {
+        draw.current.add({
+          type: 'Feature',
+          properties: {},
+          geometry: initialBoundary,
+        });
+        
+        const bounds = turf.bbox(initialBoundary);
+        map.current?.fitBounds(
+          [
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]],
+          ],
+          { padding: 50, animate: false }
+        );
+        setMapMode("boundary");
       }
     });
 
@@ -335,7 +341,7 @@ export default function MapDrawing({
       map.current?.remove();
       map.current = null;
     };
-  }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary, hasSearched]);
+  }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary, mapMode]);
 
   const handleSave = async () => {
     if (!onSave || !currentPolygon || !acreage) return;
@@ -360,6 +366,7 @@ export default function MapDrawing({
       if (onAcreageChange) onAcreageChange(null, null);
       setCurrentPolygon(null);
       setHasChanges(false);
+      setMapMode("default");
     }
   };
 
@@ -368,6 +375,7 @@ export default function MapDrawing({
     
     const data = draw.current?.getAll();
     if (data && data.features.length > 0) {
+      setMapMode("boundary");
       const bounds = turf.bbox(data);
       map.current.fitBounds(
         [
