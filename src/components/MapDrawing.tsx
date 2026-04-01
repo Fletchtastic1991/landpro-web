@@ -214,6 +214,10 @@ export default function MapDrawing({
 
     // Auto-trigger geolocation on load
     map.current.on('load', () => {
+      // Guard: If a boundary already exists, do not reset or trigger geolocation
+      const existingData = draw.current?.getAll();
+      if (existingData && existingData.features.length > 0) return;
+
       if (!initialBoundary) {
         geolocate.trigger();
       } else if (draw.current) {
