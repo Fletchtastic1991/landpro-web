@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import MapboxDraw from "@mapbox/mapbox-gl-draw";
-import MapboxGeocoder from "@mapbox/mapbox-gl-geocoder";
 import * as turf from "@turf/turf";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
-import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -36,8 +34,6 @@ interface MapDrawingProps {
   intent?: LandIntent | null;
 }
 
-type MapMode = "default" | "user-location" | "search" | "boundary";
-
 export default function MapDrawing({
   initialBoundary,
   initialAcreage,
@@ -50,7 +46,6 @@ export default function MapDrawing({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const draw = useRef<MapboxDraw | null>(null);
-  const geocoderRef = useRef<MapboxGeocoder | null>(null);
   const [acreage, setAcreage] = useState<number | null>(initialAcreage ?? null);
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingParcel, setIsFetchingParcel] = useState(false);
@@ -59,14 +54,13 @@ export default function MapDrawing({
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("satellite");
   const [parcelSource, setParcelSource] = useState<'osm' | 'estimated' | 'manual' | null>(null);
   const [parcelMessage, setParcelMessage] = useState<string | null>(null);
-  const [mapMode, setMapMode] = useState<MapMode>("default");
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const handleStyleChange = useCallback((style: MapStyleKey) => {
     if (!map.current || !style) return;
     setMapStyle(style);
     map.current.setStyle(MAP_STYLES[style].id);
   }, []);
-
 
   const calculateArea = useCallback((polygon: GeoJSON.Polygon) => {
     const area = turf.area(polygon);
@@ -92,8 +86,16 @@ export default function MapDrawing({
         setParcelSource('manual');
         setParcelMessage(null);
       }
-      // Update mode to boundary to protect the view
-      setMapMode("boundary");
+
+      // Fit bounds once when drawing or updating
+      const bounds = turf.bbox(polygon);
+      map.current?.fitBounds(
+        [
+          [bounds[0], bounds[1]],
+          [bounds[2], bounds[3]],
+        ],
+        { padding: 80, maxZoom: 18 }
+      );
     } else {
       setAcreage(null);
       if (onAcreageChange) onAcreageChange(null, null);
@@ -115,9 +117,6 @@ export default function MapDrawing({
 
       if (error) {
         console.error('Parcel fetch error:', error);
-        toast("Define your property boundary", {
-          description: "Use the polygon tool to outline the land you want."
-        });
         setParcelSource(null);
         setAcreage(null);
         if (onAcreageChange) onAcreageChange(null, null);
@@ -125,20 +124,14 @@ export default function MapDrawing({
         return;
       }
 
-      // MVP: Only auto-draw VERIFIED parcels (from OSM)
-      // Do NOT auto-draw estimated parcels - require user to manually draw
       if (data?.parcel && draw.current && data.source === 'osm') {
-        // Clear any existing drawings
         draw.current.deleteAll();
-        
-        // Add the fetched parcel to the draw control
         draw.current.add({
           type: 'Feature',
           properties: {},
           geometry: data.parcel,
         });
 
-        // Update area and set source
         const areaInfo = calculateArea(data.parcel);
         setAcreage(areaInfo.acres);
         if (onAcreageChange) onAcreageChange(areaInfo.acres, areaInfo.sqm);
@@ -147,10 +140,6 @@ export default function MapDrawing({
         setParcelSource('osm');
         setParcelMessage(data.message);
 
-        // Update mode to boundary
-        setMapMode("boundary");
-
-        // Fit bounds to the parcel
         const bounds = turf.bbox(data.parcel);
         map.current?.fitBounds(
           [
@@ -162,21 +151,14 @@ export default function MapDrawing({
 
         toast.success("Property boundary found!");
       } else {
-        // No verified parcel available - prompt user to draw manually
         setParcelSource(null);
         setAcreage(null);
         if (onAcreageChange) onAcreageChange(null, null);
         setCurrentPolygon(null);
         setParcelMessage(null);
-        toast("Define your property boundary", {
-          description: "Draw the exact area you want for the most accurate results."
-        });
       }
     } catch (err) {
       console.error('Error fetching parcel:', err);
-      toast("Define your property boundary", {
-        description: "Use the polygon tool to outline the land you want."
-      });
       setParcelSource(null);
       setAcreage(null);
       if (onAcreageChange) onAcreageChange(null, null);
@@ -191,7 +173,6 @@ export default function MapDrawing({
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    console.log("Initializing Mapbox map...");
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: "mapbox://styles/mapbox/satellite-streets-v12",
@@ -201,7 +182,6 @@ export default function MapDrawing({
       trackResize: true,
     });
 
-    // Ensure map resizes correctly when container size changes
     const resizeObserver = new ResizeObserver(() => {
       map.current?.resize();
     });
@@ -212,42 +192,46 @@ export default function MapDrawing({
     
     const geolocate = new mapboxgl.GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: false,
-      showUserHeading: false,
+      trackUserLocation: true,
+      showUserHeading: true,
     });
     map.current.addControl(geolocate, "top-right");
 
-    // Handle user location success with mapMode check
-    geolocate.on('geolocate', () => {
-      setMapMode(prev => {
-        if (prev === "default") return "user-location";
-        return prev;
-      });
+    geolocate.on('geolocate', (e: any) => {
+      const { longitude, latitude } = e.coords;
+      if (isInitialLoad && !initialBoundary) {
+        map.current?.flyTo({
+          center: [longitude, latitude],
+          zoom: 17,
+          speed: 1.5
+        });
+        setIsInitialLoad(false);
+        if (!readOnly) {
+          fetchParcelBoundary(longitude, latitude);
+        }
+      }
     });
 
-    const geocoder = new MapboxGeocoder({
-      accessToken: MAPBOX_TOKEN,
-      marker: false,
-      placeholder: "Search for an address or location...",
-      flyTo: {
-        speed: 1.5,
-        zoom: 17,
-      },
-    });
-    geocoderRef.current = geocoder;
-    map.current.addControl(geocoder, "top-left");
-
-    // Listen for geocoder results
-    geocoder.on('result', (e: { result: { center: [number, number]; place_name?: string } }) => {
-      const [lng, lat] = e.result.center;
-      console.log('Geocoder result:', e.result.place_name, lng, lat);
-      
-      // Enforce search mode
-      setMapMode("search");
-      
-      // Auto-fetch parcel boundary when address is found
-      if (!readOnly) {
-        fetchParcelBoundary(lng, lat);
+    // Auto-trigger geolocation on load
+    map.current.on('load', () => {
+      if (!initialBoundary) {
+        geolocate.trigger();
+      } else if (draw.current) {
+        draw.current.add({
+          type: 'Feature',
+          properties: {},
+          geometry: initialBoundary,
+        });
+        
+        const bounds = turf.bbox(initialBoundary);
+        map.current?.fitBounds(
+          [
+            [bounds[0], bounds[1]],
+            [bounds[2], bounds[3]],
+          ],
+          { padding: 50, animate: false }
+        );
+        setIsInitialLoad(false);
       }
     });
 
@@ -315,33 +299,12 @@ export default function MapDrawing({
       map.current.on("draw.delete", () => updateArea());
     }
 
-    // Handle initial positioning ONLY if mode is default
-    map.current.on('load', () => {
-      if (mapMode === "default" && initialBoundary && draw.current) {
-        draw.current.add({
-          type: 'Feature',
-          properties: {},
-          geometry: initialBoundary,
-        });
-        
-        const bounds = turf.bbox(initialBoundary);
-        map.current?.fitBounds(
-          [
-            [bounds[0], bounds[1]],
-            [bounds[2], bounds[3]],
-          ],
-          { padding: 50, animate: false }
-        );
-        setMapMode("boundary");
-      }
-    });
-
     return () => {
       resizeObserver.disconnect();
       map.current?.remove();
       map.current = null;
     };
-  }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary, mapMode]);
+  }, [readOnly, initialBoundary, updateArea, fetchParcelBoundary, isInitialLoad]);
 
   const handleSave = async () => {
     if (!onSave || !currentPolygon || !acreage) return;
@@ -366,7 +329,6 @@ export default function MapDrawing({
       if (onAcreageChange) onAcreageChange(null, null);
       setCurrentPolygon(null);
       setHasChanges(false);
-      setMapMode("default");
     }
   };
 
@@ -375,7 +337,6 @@ export default function MapDrawing({
     
     const data = draw.current?.getAll();
     if (data && data.features.length > 0) {
-      setMapMode("boundary");
       const bounds = turf.bbox(data);
       map.current.fitBounds(
         [
@@ -389,7 +350,6 @@ export default function MapDrawing({
 
   return (
     <div className="flex flex-col w-full">
-      {/* Map Container - Always full width, primary surface */}
       <div className="relative h-[600px] min-h-[400px] w-full overflow-hidden rounded-lg border">
         <div 
           ref={mapContainer} 
@@ -397,14 +357,12 @@ export default function MapDrawing({
           style={{ minHeight: '400px' }}
         />
         
-        {/* Imagery Recency Notice */}
         <div className="absolute bottom-4 right-4 z-10">
           <p className="text-[10px] text-muted-foreground/70 bg-background/80 backdrop-blur-sm px-2 py-1 rounded">
             Imagery may not reflect recent site changes. Verify conditions on-site.
           </p>
         </div>
       
-        {/* Layer Toggle */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-1">
           <ToggleGroup type="single" value={mapStyle} onValueChange={(v) => v && handleStyleChange(v as MapStyleKey)} className="gap-1">
             {Object.entries(MAP_STYLES).map(([key, { label }]) => (
@@ -420,7 +378,6 @@ export default function MapDrawing({
           </ToggleGroup>
         </div>
       
-        {/* Info Panel */}
         <div className="absolute top-4 right-16 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border">
           <div className="text-sm font-medium text-muted-foreground mb-1 flex items-center gap-1">
             Property Area
@@ -480,7 +437,6 @@ export default function MapDrawing({
           )}
         </div>
 
-        {/* Action Buttons */}
         {!readOnly && (
           <div className="absolute bottom-4 left-4 flex gap-2 flex-wrap">
             <Button
@@ -526,18 +482,15 @@ export default function MapDrawing({
           </div>
         )}
 
-        {/* Instructions */}
         {!readOnly && !currentPolygon && !isFetchingParcel && (
           <div className="absolute bottom-4 right-4 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg p-4 border max-w-sm">
             <p className="text-sm font-medium text-foreground mb-1">Define your land area</p>
             <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">Search an address</span> to find your property, or{" "}
-              <span className="font-medium text-foreground">draw your boundary</span> with the polygon tool for exact precision.
+              Outline your property boundary with the polygon tool for exact precision.
             </p>
           </div>
         )}
         
-        {/* Loading overlay for parcel fetch */}
         {isFetchingParcel && (
           <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] flex items-center justify-center z-20 pointer-events-none">
             <div className="bg-background/95 rounded-lg shadow-lg p-4 border flex items-center gap-3">
