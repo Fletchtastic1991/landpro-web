@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import MapDrawing from "@/components/MapDrawing";
 import AnalysisDisclaimer from "@/components/AnalysisDisclaimer";
 import type { Json } from "@/integrations/supabase/types";
+import PropertyAnalysisReport from "@/components/PropertyAnalysisReport";
 interface Project {
   id: string;
   name: string;

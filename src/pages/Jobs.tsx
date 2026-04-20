@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, User } from "lucide-react";
 
-const initialJobs = {
+const initials = {
   scheduled: [
     { id: 1, client: "Green Acres Property", title: "Lawn Maintenance", date: "Mar 15, 2025" },
     { id: 2, client: "Oak Hills", title: "Tree Trimming", date: "Mar 16, 2025" },
@@ -17,8 +17,8 @@ const initialJobs = {
   ],
 };
 
-export default function Jobs() {
-  const [jobs] = useState(initialJobs);
+export default function s() {
+  const [s] = useState(initials);
 
   const statusColors = {
     scheduled: "bg-blue-500/10 text-blue-700 border-blue-500/20",
@@ -29,9 +29,9 @@ export default function Jobs() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">Jobs</h1>
+        <h1 className="text-3xl font-bold">s</h1>
         <p className="text-muted-foreground mt-1">
-          Track and manage your landscaping jobs
+          Track and manage your landscaping s
         </p>
       </div>
 
@@ -42,25 +42,25 @@ export default function Jobs() {
             <CardTitle className="flex items-center justify-between">
               <span>Scheduled</span>
               <Badge variant="outline" className={statusColors.scheduled}>
-                {jobs.scheduled.length}
+                {s.scheduled.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {jobs.scheduled.map((job) => (
+            {s.scheduled.map(() => (
               <Card
-                key={job.id}
+                key={.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-blue-500"
               >
-                <h4 className="font-semibold mb-2">{job.title}</h4>
+                <h4 className="font-semibold mb-2">{.title}</h4>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5" />
-                    {job.client}
+                    {.client}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5" />
-                    {job.date}
+                    {.date}
                   </div>
                 </div>
               </Card>
@@ -74,25 +74,25 @@ export default function Jobs() {
             <CardTitle className="flex items-center justify-between">
               <span>In Progress</span>
               <Badge variant="outline" className={statusColors.inProgress}>
-                {jobs.inProgress.length}
+                {s.inProgress.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {jobs.inProgress.map((job) => (
+            {s.inProgress.map(() => (
               <Card
-                key={job.id}
+                key={.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-yellow-500"
               >
-                <h4 className="font-semibold mb-2">{job.title}</h4>
+                <h4 className="font-semibold mb-2">{.title}</h4>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5" />
-                    {job.client}
+                    {.client}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5" />
-                    {job.date}
+                    {.date}
                   </div>
                 </div>
               </Card>
@@ -106,25 +106,25 @@ export default function Jobs() {
             <CardTitle className="flex items-center justify-between">
               <span>Completed</span>
               <Badge variant="outline" className={statusColors.completed}>
-                {jobs.completed.length}
+                {s.completed.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {jobs.completed.map((job) => (
+            {s.completed.map(() => (
               <Card
-                key={job.id}
+                key={.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-green-500"
               >
-                <h4 className="font-semibold mb-2">{job.title}</h4>
+                <h4 className="font-semibold mb-2">{.title}</h4>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5" />
-                    {job.client}
+                    {.client}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5" />
-                    {job.date}
+                    {.date}
                   </div>
                 </div>
               </Card>
