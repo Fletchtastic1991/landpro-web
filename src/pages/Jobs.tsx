@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
 import { Calendar, User } from "lucide-react";
 
 const initials = {
@@ -47,20 +47,20 @@ export default function s() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {s.scheduled.map(() => (
+            {s.scheduled.map((job) => (
               <Card
-                key={.id}
+                key={job.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-blue-500"
               >
-                <h4 className="font-semibold mb-2">{.title}</h4>
+                <h4 className="font-semibold mb-2">{job.title}</h4>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5" />
-                    {.client}
+                    {job.client}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5" />
-                    {.date}
+                    {job.date}
                   </div>
                 </div>
               </Card>
@@ -79,20 +79,20 @@ export default function s() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {s.inProgress.map(() => (
+            {s.inProgress.map((job) => (
               <Card
-                key={.id}
+                key={job.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-yellow-500"
               >
-                <h4 className="font-semibold mb-2">{.title}</h4>
+                <h4 className="font-semibold mb-2">{job.title}</h4>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5" />
-                    {.client}
+                    {job.client}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5" />
-                    {.date}
+                    {job.date}
                   </div>
                 </div>
               </Card>
@@ -111,20 +111,20 @@ export default function s() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {s.completed.map(() => (
+            {s.completed.map((job) => (
               <Card
-                key={.id}
+                key={job.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-green-500"
               >
-                <h4 className="font-semibold mb-2">{.title}</h4>
+                <h4 className="font-semibold mb-2">{job.title}</h4>
                 <div className="space-y-1 text-sm text-muted-foreground">
                   <div className="flex items-center gap-2">
                     <User className="h-3.5 w-3.5" />
-                    {.client}
+                    {job.client}
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-3.5 w-3.5" />
-                    {.date}
+                    {job.date}
                   </div>
                 </div>
               </Card>
