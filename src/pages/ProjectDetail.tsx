@@ -1,18 +1,20 @@
+/// <reference types="vite/client" />
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Skeleton } from "../components/ui/skeleton";
+import { supabase } from "../integrations/supabase/client";
+import { useToast } from "../components/ui/use-toast";
 import { ArrowLeft, Loader2, MapPin, FileText, AlertTriangle, Map, Leaf, Mountain, Wrench, DollarSign, Users, Brain, RefreshCw, Cog } from "lucide-react";
 import { format } from "date-fns";
-import MapDrawing from "@/components/MapDrawing";
-import AnalysisDisclaimer from "@/components/AnalysisDisclaimer";
-import type { Json } from "@/integrations/supabase/types";
-import PropertyAnalysisReport from "@/components/PropertyAnalysisReport";
+import MapDrawing from "../components/MapDrawing";
+import AnalysisDisclaimer from "../components/AnalysisDisclaimer";
+import type { Json } from "../integrations/supabase/types";
+import PropertyAnalysisReport from "../components/PropertyAnalysisReport";
 interface Project {
   id: string;
   name: string;
