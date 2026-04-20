@@ -1,4 +1,4 @@
-import { LandProEvent } from "../events/EventTypes";
+import { LandProEvent } from "../events/EventTypes.js";
 
 /**
  * JournalEntry
