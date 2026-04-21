@@ -6,11 +6,10 @@ import { LandSelections } from "@/components/LandSelectors";
 import { cn } from "@/lib/utils";
 import {
   Calendar, Ruler, Leaf, Mountain, MapPin,
-  Lock, Download, CheckCircle2, DollarSign, FileText
+  Lock, Download, CheckCircle2, DollarSign, FileText,
+  Droplets, Building2, Trash2
 } from "lucide-react";
 import { format } from "date-fns";
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface JobReportProps {
   propertyData: { acreage: number | null; squareMeters: number | null };
@@ -18,7 +17,7 @@ interface JobReportProps {
   className?: string;
 }
 
-// ─── Dark Palette (matches LandPro's #0d1f13 / #22c55e theme) ────────────────
+// ─── Dark palette ─────────────────────────────────────────────────────────────
 
 const D = {
   bg:        "#0d1f13",
@@ -39,7 +38,27 @@ const D = {
   amberBrd:  "#854d0e",
 };
 
-// ─── Real Contractor Calculations (from Manus calculationResolver) ────────────
+// ─── Cost multipliers for new fields ─────────────────────────────────────────
+
+const WATER_MULTIPLIERS = {
+  none:          { min: 1.0,  max: 1.0,  label: "No water features" },
+  pond_or_creek: { min: 1.15, max: 1.25, label: "Pond or creek present" },
+  wetland:       { min: 1.3,  max: 1.5,  label: "Wetland area — permit review required" },
+};
+
+const STRUCTURE_MULTIPLIERS = {
+  none:                { min: 1.0,  max: 1.0,  label: "No existing structures" },
+  fencing:             { min: 1.05, max: 1.1,  label: "Existing fencing to remove" },
+  buildings_utilities: { min: 1.15, max: 1.3,  label: "Buildings or utilities present" },
+};
+
+const DEBRIS_MULTIPLIERS = {
+  none:  { min: 1.0,  max: 1.0,  label: "No debris" },
+  light: { min: 1.05, max: 1.1,  label: "Light debris — standard disposal" },
+  heavy: { min: 1.15, max: 1.35, label: "Heavy debris/trash — additional haul-off required" },
+};
+
+// ─── Core calculations ────────────────────────────────────────────────────────
 
 function calcFence(acres: number, postSpacingFt = 8) {
   const lotSideFt = Math.sqrt(acres * 43560);
@@ -49,12 +68,9 @@ function calcFence(acres: number, postSpacingFt = 8) {
 }
 
 function calcClearing(acres: number, s: LandSelections) {
-  // Base hours per acre by vegetation
   const baseMin = { light: 3, medium: 6,  heavy: 10 }[s.vegetation];
   const baseMax = { light: 6, medium: 10, heavy: 18 }[s.vegetation];
-  // Terrain multiplier
   const tFac    = { flat: 1.0, slight_slope: 1.2, steep: 1.5 }[s.terrain];
-  // Access multiplier
   const aFac    = { easy: 1.0, moderate: 1.2, difficult: 1.5 }[s.accessibility];
   return {
     minHours: Math.round(baseMin * tFac * aFac * acres),
@@ -62,19 +78,22 @@ function calcClearing(acres: number, s: LandSelections) {
   };
 }
 
-function calcMaterials(acres: number, landscapedPct = 20, mulchDepthIn = 3) {
-  const landscapedSqFt  = Math.round(acres * 43560 * (landscapedPct / 100));
-  const mulchCuYds      = Math.round(((landscapedSqFt * (mulchDepthIn / 12)) / 27) * 10) / 10;
+function calcMaterials(acres: number, landscapedPct = 20) {
+  const landscapedSqFt = Math.round(acres * 43560 * (landscapedPct / 100));
+  const mulchCuYds     = Math.round(((landscapedSqFt * (3 / 12)) / 27) * 10) / 10;
   return { landscapedSqFt, mulchCuYds, landscapedPct };
 }
 
 function calcCost(acres: number, s: LandSelections) {
-  const base    = { light: { min: 1500, max: 3000 }, medium: { min: 3000, max: 6000 }, heavy: { min: 6000, max: 12000 } }[s.vegetation];
-  const tFac    = { flat: { min: 1.0, max: 1.0 }, slight_slope: { min: 1.1, max: 1.25 }, steep: { min: 1.3, max: 1.5 } }[s.terrain];
-  const aFac    = { easy: { min: 1.0, max: 1.0 }, moderate: { min: 1.15, max: 1.3 }, difficult: { min: 1.4, max: 1.6 } }[s.accessibility];
+  const base   = { light: { min: 1500, max: 3000 }, medium: { min: 3000, max: 6000 }, heavy: { min: 6000, max: 12000 } }[s.vegetation];
+  const tFac   = { flat: { min: 1.0, max: 1.0 }, slight_slope: { min: 1.1, max: 1.25 }, steep: { min: 1.3, max: 1.5 } }[s.terrain];
+  const aFac   = { easy: { min: 1.0, max: 1.0 }, moderate: { min: 1.15, max: 1.3 }, difficult: { min: 1.4, max: 1.6 } }[s.accessibility];
+  const wFac   = WATER_MULTIPLIERS[s.water];
+  const sFac   = STRUCTURE_MULTIPLIERS[s.structures];
+  const dFac   = DEBRIS_MULTIPLIERS[s.debris];
   return {
-    low:  Math.round(base.min * tFac.min * aFac.min * acres / 100) * 100,
-    high: Math.round(base.max * tFac.max * aFac.max * acres / 100) * 100,
+    low:  Math.round(base.min * tFac.min * aFac.min * wFac.min * sFac.min * dFac.min * acres / 100) * 100,
+    high: Math.round(base.max * tFac.max * aFac.max * wFac.max * sFac.max * dFac.max * acres / 100) * 100,
     baseRateMin: base.min,
     baseRateMax: base.max,
   };
@@ -88,17 +107,18 @@ function calcLabor(acres: number, s: LandSelections) {
   return { crew, difficulty: diff };
 }
 
-// ─── Confidence (from Manus assumptionsManager logic) ────────────────────────
+// ─── Confidence ───────────────────────────────────────────────────────────────
 
 function getConfidence(s: LandSelections): { level: "Low" | "Medium" | "High"; reason: string } {
-  if (s.vegetation === "heavy" && s.terrain === "steep")
-    return { level: "Low",    reason: "Heavy vegetation + steep terrain creates high variability. On-site assessment strongly recommended." };
-  if (s.vegetation === "heavy" || s.terrain === "steep" || s.accessibility === "difficult")
-    return { level: "Medium", reason: "One or more challenging conditions present. Estimates are directionally accurate but require site verification." };
-  return   { level: "High",   reason: "Favorable conditions with predictable scope. Estimates are reliable for budgeting purposes." };
+  const isHard = s.vegetation === "heavy" && s.terrain === "steep";
+  const isMod  = s.vegetation === "heavy" || s.terrain === "steep" || s.accessibility === "difficult"
+              || s.water === "wetland" || s.structures === "buildings_utilities" || s.debris === "heavy";
+  if (isHard) return { level: "Low",    reason: "Heavy vegetation + steep terrain creates high variability. On-site assessment strongly recommended." };
+  if (isMod)  return { level: "Medium", reason: "One or more challenging conditions present. Estimates are directionally accurate but require site verification." };
+  return        { level: "High",   reason: "Favorable conditions. Estimates are reliable for initial budgeting." };
 }
 
-// ─── Smart Descriptors ────────────────────────────────────────────────────────
+// ─── Descriptors ─────────────────────────────────────────────────────────────
 
 const VEG = {
   light:  { label: "Light Vegetation",  canopy: "10–30% canopy coverage",  detail: "Sparse tree coverage with minimal underbrush. Open canopy, mostly grass or shrubs." },
@@ -108,7 +128,7 @@ const VEG = {
 const TER = {
   flat:         { label: "Flat Terrain",  slope: "Avg slope: <2% — minimal grade impact",   detail: "Low elevation variance. Minimal equipment efficiency impact." },
   slight_slope: { label: "Slight Slope",  slope: "Avg slope: 6–9% — moderate impact",        detail: "Moderate elevation change. Equipment access manageable with standard machinery." },
-  steep:        { label: "Steep Terrain", slope: "Avg slope: 15%+ — significant impact",     detail: "Significant grade change. Specialized equipment and additional safety measures required." },
+  steep:        { label: "Steep Terrain", slope: "Avg slope: 15%+ — significant impact",     detail: "Significant grade change. Specialized equipment and safety measures required." },
 };
 const ACC = {
   easy:      { label: "Easy Access",      impact: "No access premium",         detail: "Direct road access. Standard equipment mobilization." },
@@ -123,16 +143,24 @@ function getEquipment(s: LandSelections): string[] {
   else                                 eq.push("Heavy-duty bulldozer (D6/D7)", "Excavator with thumb (20–30 ton)", "Forestry mulcher or tub grinder", "Haul trucks for debris removal");
   if (s.terrain === "steep")           eq.push("Track-mounted equipment only", "Erosion control materials");
   if (s.accessibility === "difficult") eq.push("Low-ground-pressure equipment", "Access road construction may be required");
+  if (s.water === "pond_or_creek")     eq.push("Silt fencing / sediment barriers");
+  if (s.water === "wetland")           eq.push("Wetland-rated equipment", "Environmental consultant required");
+  if (s.structures === "fencing")      eq.push("Fence removal tools / post puller");
+  if (s.structures === "buildings_utilities") eq.push("Utility locating service (811 call required)", "Demolition equipment");
+  if (s.debris === "heavy")            eq.push("Dumpsters / additional haul trucks");
   return eq;
 }
 
 function getRisks(s: LandSelections): string[] {
   const r: string[] = [];
   if (s.vegetation === "heavy")        r.push("Dense canopy may conceal ground hazards (stumps, debris, sinkholes)", "Timber value assessment recommended before clearing");
-  if (s.terrain === "steep")           r.push("Steep grade increases rollover risk — certified operators required", "Stormwater/erosion control plan likely required by local regulation");
+  if (s.terrain === "steep")           r.push("Steep grade increases rollover risk — certified operators required", "Stormwater/erosion control plan likely required");
   if (s.terrain === "slight_slope")    r.push("Monitor for erosion at slope breaks and drainage channels");
-  if (s.accessibility === "difficult") r.push("Temporary road construction may be required before clearing", "Emergency equipment access must be established before work begins");
-  if (s.accessibility === "moderate")  r.push("Verify equipment entry points before mobilization");
+  if (s.accessibility === "difficult") r.push("Temporary road construction may be required before clearing");
+  if (s.water === "pond_or_creek")     r.push("Sediment runoff into waterway — erosion control required", "Verify setback requirements from water edge");
+  if (s.water === "wetland")           r.push("Wetland disturbance may require Army Corps of Engineers permit", "Clearing near wetland boundary may be restricted by federal/state law");
+  if (s.structures === "buildings_utilities") r.push("Call 811 before any excavation — underground utilities likely present", "Demolition permits may be required for existing structures");
+  if (s.debris === "heavy")            r.push("Hazardous waste inspection recommended before clearing begins", "Additional disposal costs for heavy debris — confirm with local landfill");
   r.push("Site visit required to verify conditions before final pricing");
   r.push("Permitting requirements vary by county — verify before project start");
   return r;
@@ -152,18 +180,20 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
   const acres    = propertyData.acreage ?? 0;
   const hasAcre  = acres > 0;
 
-  // All calculations
-  const fence    = hasAcre ? calcFence(acres)             : null;
+  const fence    = hasAcre ? calcFence(acres)              : null;
   const clearing = hasAcre ? calcClearing(acres, selections) : null;
-  const mats     = hasAcre ? calcMaterials(acres)         : null;
-  const cost     = hasAcre ? calcCost(acres, selections)  : null;
-  const labor    = hasAcre ? calcLabor(acres, selections) : null;
+  const mats     = hasAcre ? calcMaterials(acres)          : null;
+  const cost     = hasAcre ? calcCost(acres, selections)   : null;
+  const labor    = hasAcre ? calcLabor(acres, selections)  : null;
   const equip    = getEquipment(selections);
   const risks    = getRisks(selections);
   const conf     = getConfidence(selections);
   const veg      = VEG[selections.vegetation];
   const ter      = TER[selections.terrain];
   const acc      = ACC[selections.accessibility];
+  const water    = WATER_MULTIPLIERS[selections.water];
+  const structs  = STRUCTURE_MULTIPLIERS[selections.structures];
+  const debris   = DEBRIS_MULTIPLIERS[selections.debris];
 
   const confColor = { High: "#4ade80", Medium: "#fbbf24", Low: "#f87171" }[conf.level];
   const confBadge = {
@@ -172,7 +202,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
     Low:    "bg-red-500/20 text-red-400 border-red-500/30",
   }[conf.level];
 
-  // ── Pre-generate view ─────────────────────────────────────────────────────
+  // ── Pre-generate ──────────────────────────────────────────────────────────
   if (!generated) {
     return (
       <Card className={cn("overflow-hidden border-2", className)}>
@@ -188,23 +218,33 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
         </CardHeader>
         <CardContent className="p-6 space-y-6">
 
-          {/* Stats row */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* 6-field summary grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { icon: Ruler,    label: "Property Size", value: hasAcre ? `${acres} Acres` : "Not defined", color: "bg-blue-500/10 text-blue-400" },
-              { icon: Leaf,     label: "Vegetation",    value: veg.label,  color: "bg-green-500/10 text-green-400" },
-              { icon: Mountain, label: "Terrain",       value: ter.label,  color: "bg-amber-500/10 text-amber-400" },
-              { icon: MapPin,   label: "Accessibility", value: acc.label,  color: "bg-purple-500/10 text-purple-400" },
+              { icon: Ruler,     label: "Property Size", value: hasAcre ? `${acres} Acres` : "Not defined",         color: "bg-blue-500/10 text-blue-400" },
+              { icon: Leaf,      label: "Vegetation",    value: veg.label,                                            color: "bg-green-500/10 text-green-400" },
+              { icon: Mountain,  label: "Terrain",       value: ter.label,                                            color: "bg-amber-500/10 text-amber-400" },
+              { icon: MapPin,    label: "Accessibility", value: acc.label,                                            color: "bg-purple-500/10 text-purple-400" },
+              { icon: Droplets,  label: "Water",         value: water.label,                                          color: "bg-cyan-500/10 text-cyan-400" },
+              { icon: Building2, label: "Structures",    value: structs.label,                                        color: "bg-orange-500/10 text-orange-400" },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="flex items-center justify-between p-3 rounded-lg border bg-background/50">
                 <div className="flex items-center gap-2">
                   <div className={cn("p-1.5 rounded-md", color)}><Icon className="h-3.5 w-3.5" /></div>
                   <span className="text-xs font-medium text-muted-foreground">{label}</span>
                 </div>
-                <span className="text-xs font-bold">{value}</span>
+                <span className="text-xs font-bold text-right max-w-[120px]">{value}</span>
               </div>
             ))}
           </div>
+
+          {/* Debris callout if set */}
+          {selections.debris !== "none" && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-amber-500/5 border-amber-500/20">
+              <Trash2 className="h-4 w-4 text-amber-400 flex-shrink-0" />
+              <p className="text-sm text-amber-400 font-medium">{debris.label} — disposal costs factored into estimate</p>
+            </div>
+          )}
 
           {/* Smart descriptions */}
           <div className="grid md:grid-cols-3 gap-4">
@@ -227,10 +267,10 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
           {hasAcre && fence && clearing && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: "Est. Perimeter",    value: `${fence.perimeter.toLocaleString()} ft` },
-                { label: "Fence Posts",        value: `${fence.posts} posts` },
-                { label: "Clearing Hours",     value: `${clearing.minHours}–${clearing.maxHours} hrs` },
-                { label: "Crew Size",          value: `${labor?.crew} operators` },
+                { label: "Est. Perimeter",  value: `${fence.perimeter.toLocaleString()} ft` },
+                { label: "Fence Posts",      value: `${fence.posts} posts` },
+                { label: "Clearing Hours",   value: `${clearing.minHours}–${clearing.maxHours} hrs` },
+                { label: "Crew Size",        value: `${labor?.crew} operators` },
               ].map(({ label, value }) => (
                 <div key={label} className="p-3 rounded-lg border bg-primary/5 text-center">
                   <p className="text-lg font-bold text-primary">{value}</p>
@@ -258,7 +298,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
           {hasAcre ? (
             <div className="pt-2 space-y-3">
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                {["Fence post calculator","Clearing hours estimate","Mulch/material quantities","Layered cost model","Risk factors","Locked report + PDF"].map(item => (
+                {["Fence calculator","Clearing hours","Material quantities","Water/debris multipliers","Risk factors","Locked report + PDF"].map(item => (
                   <div key={item} className="flex items-center gap-1">
                     <CheckCircle2 className="h-3 w-3 text-primary" />{item}
                   </div>
@@ -281,11 +321,9 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
     );
   }
 
-  // ── Generated report ─────────────────────────────────────────────────────
-
+  // ── Generated dark report ─────────────────────────────────────────────────
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Action bar */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 gap-1 text-xs">
@@ -309,11 +347,10 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
         </Button>
       </div>
 
-      {/* Dark report document */}
       <div style={{ borderRadius: "12px", overflow: "hidden", border: `1px solid ${D.borderAcc}`, boxShadow: "0 4px 32px rgba(0,0,0,0.5)" }}>
         <div id="lp-report-doc" style={{ background: D.bg, color: D.text, padding: "44px 48px", fontFamily: "Georgia, serif", lineHeight: 1.6 }}>
 
-          {/* ── Header ── */}
+          {/* Header */}
           <div style={{ borderBottom: `2px solid ${D.primaryDk}`, paddingBottom: "24px", marginBottom: "28px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
@@ -339,24 +376,26 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             </div>
           </div>
 
-          {/* ── Summary bar ── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "1px", background: D.border, border: `1px solid ${D.border}`, borderRadius: "8px", overflow: "hidden", marginBottom: "28px" }}>
+          {/* 6-field summary bar */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: "1px", background: D.border, border: `1px solid ${D.border}`, borderRadius: "8px", overflow: "hidden", marginBottom: "28px" }}>
             {[
               { label: "Property Size", value: hasAcre ? `${acres} acres` : "—" },
               { label: "Vegetation",    value: veg.label },
               { label: "Terrain",       value: ter.label },
               { label: "Accessibility", value: acc.label },
+              { label: "Water",         value: selections.water === "none" ? "None" : water.label.split("—")[0].trim() },
+              { label: "Debris",        value: selections.debris === "none" ? "None" : debris.label.split("—")[0].trim() },
             ].map((item, i) => (
-              <div key={i} style={{ background: D.bgCard, padding: "14px 16px" }}>
-                <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "3px" }}>{item.label}</div>
-                <div style={{ fontSize: "13px", fontWeight: "600", fontFamily: "sans-serif", color: D.text }}>{item.value}</div>
+              <div key={i} style={{ background: D.bgCard, padding: "12px 10px" }}>
+                <div style={{ fontSize: "8px", color: D.dim, fontFamily: "sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "3px" }}>{item.label}</div>
+                <div style={{ fontSize: "11px", fontWeight: "600", fontFamily: "sans-serif", color: D.text }}>{item.value}</div>
               </div>
             ))}
           </div>
 
-          {/* ── Site Conditions ── */}
+          {/* Site conditions */}
           <RHead label="📋  Site Conditions" D={D} />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "28px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "20px" }}>
             {[
               { title: "🌿 Vegetation", main: veg.canopy,  sub: veg.detail },
               { title: "⛰️  Terrain",   main: ter.slope,   sub: ter.detail },
@@ -370,77 +409,68 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             ))}
           </div>
 
-          {/* ── Calculations (the intelligence layer) ── */}
+          {/* Field observations */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px", marginBottom: "28px" }}>
+            {[
+              { title: "💧 Water",      main: water.label,   sub: selections.water === "wetland" ? "Permit review may be required" : selections.water === "none" ? "No cost impact" : "+15–25% cost factor" },
+              { title: "🏗️ Structures", main: structs.label, sub: selections.structures === "none" ? "No cost impact" : selections.structures === "fencing" ? "+5–10% cost factor" : "+15–30% cost factor — utility locate required" },
+              { title: "🗑️ Debris",     main: debris.label,  sub: selections.debris === "none" ? "No cost impact" : selections.debris === "light" ? "+5–10% disposal cost" : "+15–35% disposal cost — haul-off required" },
+            ].map((item, i) => (
+              <div key={i} style={{ background: D.bgSect, border: `1px solid ${D.border}`, borderRadius: "6px", padding: "12px 14px" }}>
+                <div style={{ fontSize: "11px", fontWeight: "700", fontFamily: "sans-serif", marginBottom: "6px", color: D.muted }}>{item.title}</div>
+                <div style={{ fontSize: "12px", fontWeight: "600", color: D.primary, marginBottom: "4px" }}>{item.main}</div>
+                <div style={{ fontSize: "11px", color: D.dim }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Calculated estimates */}
           {fence && clearing && mats && (
             <>
               <RHead label="📐  Calculated Estimates" D={D} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "28px" }}>
 
-                {/* Fence */}
                 <div style={{ background: D.bgSect, border: `1px solid ${D.border}`, borderRadius: "6px", padding: "14px 16px" }}>
                   <div style={{ fontSize: "11px", fontWeight: "700", color: D.muted, fontFamily: "sans-serif", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>🔲 Fence Estimate</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-                    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{fence.perimeter.toLocaleString()} ft</div>
-                      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>Perimeter</div>
-                    </div>
-                    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{fence.posts}</div>
-                      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>Posts ({fence.postSpacingFt}ft spacing)</div>
-                    </div>
+                    <StatBox value={`${fence.perimeter.toLocaleString()} ft`} label="Perimeter" D={D} />
+                    <StatBox value={`${fence.posts}`} label={`Posts (${fence.postSpacingFt}ft spacing)`} D={D} />
                   </div>
                   <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic" }}>
                     Based on {acres} acre square lot: {fence.perimeter.toLocaleString()} ft perimeter, posts at {fence.postSpacingFt} ft apart
                   </div>
                 </div>
 
-                {/* Clearing */}
                 <div style={{ background: D.bgSect, border: `1px solid ${D.border}`, borderRadius: "6px", padding: "14px 16px" }}>
                   <div style={{ fontSize: "11px", fontWeight: "700", color: D.muted, fontFamily: "sans-serif", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>⏱️ Clearing Estimate</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-                    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{clearing.minHours}–{clearing.maxHours}</div>
-                      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>Machine Hours</div>
-                    </div>
-                    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{labor?.crew}</div>
-                      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>Crew Size</div>
-                    </div>
+                    <StatBox value={`${clearing.minHours}–${clearing.maxHours}`} label="Machine Hours" D={D} />
+                    <StatBox value={`${labor?.crew}`} label="Crew Size" D={D} />
                   </div>
                   <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic" }}>
-                    {acres} acres × {veg.label.toLowerCase()} difficulty: {clearing.minHours}–{clearing.maxHours} machine hours
+                    {acres} acres × {veg.label.toLowerCase()} + {ter.label.toLowerCase()}: {clearing.minHours}–{clearing.maxHours} machine hours
                   </div>
                 </div>
 
-                {/* Materials */}
                 <div style={{ background: D.bgSect, border: `1px solid ${D.border}`, borderRadius: "6px", padding: "14px 16px" }}>
                   <div style={{ fontSize: "11px", fontWeight: "700", color: D.muted, fontFamily: "sans-serif", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>🪵 Material Estimate</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
-                    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{mats.landscapedSqFt.toLocaleString()}</div>
-                      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>Landscaped sq ft</div>
-                    </div>
-                    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
-                      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{mats.mulchCuYds} cy</div>
-                      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>Mulch (3" depth)</div>
-                    </div>
+                    <StatBox value={mats.landscapedSqFt.toLocaleString()} label="Landscaped sq ft" D={D} />
+                    <StatBox value={`${mats.mulchCuYds} cy`} label="Mulch (3\" depth)" D={D} />
                   </div>
                   <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic" }}>
                     {mats.landscapedPct}% of lot landscaped ({mats.landscapedSqFt.toLocaleString()} sq ft), 3 inches of mulch depth
                   </div>
                 </div>
 
-                {/* Cost */}
                 {cost && (
                   <div style={{ background: D.bgSect, border: `1px solid ${D.borderAcc}`, borderRadius: "6px", padding: "14px 16px" }}>
                     <div style={{ fontSize: "11px", fontWeight: "700", color: D.muted, fontFamily: "sans-serif", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>💵 Cost Estimate</div>
-                    <div style={{ marginBottom: "8px" }}>
-                      <div style={{ fontSize: "22px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>
-                        ${cost.low.toLocaleString()} – ${cost.high.toLocaleString()}
-                      </div>
-                      <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif" }}>
-                        Base: ${cost.baseRateMin.toLocaleString()}–${cost.baseRateMax.toLocaleString()}/acre × terrain × access multipliers
-                      </div>
+                    <div style={{ fontSize: "22px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif", marginBottom: "4px" }}>
+                      ${cost.low.toLocaleString()} – ${cost.high.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", marginBottom: "8px" }}>
+                      Base: ${cost.baseRateMin.toLocaleString()}–${cost.baseRateMax.toLocaleString()}/acre × terrain × access × water × debris multipliers
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${D.border}` }}>
                       <span style={{ fontSize: "11px", color: D.dim, fontFamily: "sans-serif" }}>Confidence</span>
@@ -453,7 +483,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             </>
           )}
 
-          {/* ── Equipment ── */}
+          {/* Equipment */}
           <RHead label="🔧  Recommended Equipment" D={D} />
           <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
             {equip.map((e, i) => (
@@ -462,7 +492,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
           </div>
           <p style={{ fontSize: "10px", color: D.dim, fontStyle: "italic", marginBottom: "24px", fontFamily: "sans-serif" }}>Common examples. Contractors may use different methods or equipment.</p>
 
-          {/* ── Risk Factors ── */}
+          {/* Risks */}
           <RHead label="⚠️  Key Risk Factors" D={D} />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "28px" }}>
             {risks.map((r, i) => (
@@ -472,7 +502,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             ))}
           </div>
 
-          {/* ── Footer ── */}
+          {/* Footer */}
           <div style={{ borderTop: `1px solid ${D.border}`, paddingTop: "16px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
               <div style={{ fontSize: "10px", color: D.primary, fontFamily: "sans-serif", marginBottom: "4px" }}>
@@ -494,13 +524,22 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
   );
 };
 
-// ─── Section Header ───────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function RHead({ label, D }: { label: string; D: typeof import("./JobReport")["default"] extends any ? any : any }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
       <span style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#9ca3af", fontFamily: "sans-serif" }}>{label}</span>
       <div style={{ flex: 1, height: "1px", background: "#1f3829" }} />
+    </div>
+  );
+}
+
+function StatBox({ value, label, D }: { value: string; label: string; D: typeof import("./JobReport")["default"] extends any ? any : any }) {
+  return (
+    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
+      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{value}</div>
+      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>{label}</div>
     </div>
   );
 }
