@@ -456,7 +456,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                   <div style={{ fontSize: "11px", fontWeight: "700", color: D.muted, fontFamily: "sans-serif", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>🪵 Material Estimate</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
                     <StatBox value={mats.landscapedSqFt.toLocaleString()} label="Landscaped sq ft" D={D} />
-                    <StatBox value={`${mats.mulchCuYds} cy`} label="Mulch (3\" depth)" D={D} />
+                    <StatBox value={`${mats.mulchCuYds} cy`} label="Mulch (3" depth)" D={D} />
                   </div>
                   <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic" }}>
                     {mats.landscapedPct}% of lot landscaped ({mats.landscapedSqFt.toLocaleString()} sq ft), 3 inches of mulch depth
