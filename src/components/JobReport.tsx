@@ -36,7 +36,9 @@ const D = {
   amberBg:   "#1c1208",
   amber:     "#fcd34d",
   amberBrd:  "#854d0e",
-};
+} as const;
+
+type Palette = typeof D;
 
 // ─── Cost multipliers for new fields ─────────────────────────────────────────
 
@@ -68,10 +70,10 @@ function calcFence(acres: number, postSpacingFt = 8) {
 }
 
 function calcClearing(acres: number, s: LandSelections) {
-  const baseMin = { light: 3, medium: 6,  heavy: 10 }[s.vegetation];
-  const baseMax = { light: 6, medium: 10, heavy: 18 }[s.vegetation];
-  const tFac    = { flat: 1.0, slight_slope: 1.2, steep: 1.5 }[s.terrain];
-  const aFac    = { easy: 1.0, moderate: 1.2, difficult: 1.5 }[s.accessibility];
+  const baseMin = { light: 3, medium: 6,  heavy: 10 }[s.vegetation as "light" | "medium" | "heavy"];
+  const baseMax = { light: 6, medium: 10, heavy: 18 }[s.vegetation as "light" | "medium" | "heavy"];
+  const tFac    = { flat: 1.0, slight_slope: 1.2, steep: 1.5 }[s.terrain as "flat" | "slight_slope" | "steep"];
+  const aFac    = { easy: 1.0, moderate: 1.2, difficult: 1.5 }[s.accessibility as "easy" | "moderate" | "difficult"];
   return {
     minHours: Math.round(baseMin * tFac * aFac * acres),
     maxHours: Math.round(baseMax * tFac * aFac * acres),
@@ -85,12 +87,12 @@ function calcMaterials(acres: number, landscapedPct = 20) {
 }
 
 function calcCost(acres: number, s: LandSelections) {
-  const base   = { light: { min: 1500, max: 3000 }, medium: { min: 3000, max: 6000 }, heavy: { min: 6000, max: 12000 } }[s.vegetation];
-  const tFac   = { flat: { min: 1.0, max: 1.0 }, slight_slope: { min: 1.1, max: 1.25 }, steep: { min: 1.3, max: 1.5 } }[s.terrain];
-  const aFac   = { easy: { min: 1.0, max: 1.0 }, moderate: { min: 1.15, max: 1.3 }, difficult: { min: 1.4, max: 1.6 } }[s.accessibility];
-  const wFac   = WATER_MULTIPLIERS[s.water];
-  const sFac   = STRUCTURE_MULTIPLIERS[s.structures];
-  const dFac   = DEBRIS_MULTIPLIERS[s.debris];
+  const base   = { light: { min: 1500, max: 3000 }, medium: { min: 3000, max: 6000 }, heavy: { min: 6000, max: 12000 } }[s.vegetation as "light" | "medium" | "heavy"];
+  const tFac   = { flat: { min: 1.0, max: 1.0 }, slight_slope: { min: 1.1, max: 1.25 }, steep: { min: 1.3, max: 1.5 } }[s.terrain as "flat" | "slight_slope" | "steep"];
+  const aFac   = { easy: { min: 1.0, max: 1.0 }, moderate: { min: 1.15, max: 1.3 }, difficult: { min: 1.4, max: 1.6 } }[s.accessibility as "easy" | "moderate" | "difficult"];
+  const wFac   = WATER_MULTIPLIERS[s.water as keyof typeof WATER_MULTIPLIERS];
+  const sFac   = STRUCTURE_MULTIPLIERS[s.structures as keyof typeof STRUCTURE_MULTIPLIERS];
+  const dFac   = DEBRIS_MULTIPLIERS[s.debris as keyof typeof DEBRIS_MULTIPLIERS];
   return {
     low:  Math.round(base.min * tFac.min * aFac.min * wFac.min * sFac.min * dFac.min * acres / 100) * 100,
     high: Math.round(base.max * tFac.max * aFac.max * wFac.max * sFac.max * dFac.max * acres / 100) * 100,
@@ -188,12 +190,12 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
   const equip    = getEquipment(selections);
   const risks    = getRisks(selections);
   const conf     = getConfidence(selections);
-  const veg      = VEG[selections.vegetation];
-  const ter      = TER[selections.terrain];
-  const acc      = ACC[selections.accessibility];
-  const water    = WATER_MULTIPLIERS[selections.water];
-  const structs  = STRUCTURE_MULTIPLIERS[selections.structures];
-  const debris   = DEBRIS_MULTIPLIERS[selections.debris];
+  const veg      = VEG[selections.vegetation as keyof typeof VEG];
+  const ter      = TER[selections.terrain as keyof typeof TER];
+  const acc      = ACC[selections.accessibility as keyof typeof ACC];
+  const water    = WATER_MULTIPLIERS[selections.water as keyof typeof WATER_MULTIPLIERS];
+  const structs  = STRUCTURE_MULTIPLIERS[selections.structures as keyof typeof STRUCTURE_MULTIPLIERS];
+  const debris   = DEBRIS_MULTIPLIERS[selections.debris as keyof typeof DEBRIS_MULTIPLIERS];
 
   const confColor = { High: "#4ade80", Medium: "#fbbf24", Low: "#f87171" }[conf.level];
   const confBadge = {
@@ -456,7 +458,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                   <div style={{ fontSize: "11px", fontWeight: "700", color: D.muted, fontFamily: "sans-serif", marginBottom: "10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>🪵 Material Estimate</div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "8px" }}>
                     <StatBox value={mats.landscapedSqFt.toLocaleString()} label="Landscaped sq ft" D={D} />
-                    <StatBox value={`${mats.mulchCuYds} cy`} label="Mulch (3" depth)" D={D} />
+                    <StatBox value={`${mats.mulchCuYds} cy`} label={`Mulch (3" depth) `} D={D} />
                   </div>
                   <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic" }}>
                     {mats.landscapedPct}% of lot landscaped ({mats.landscapedSqFt.toLocaleString()} sq ft), 3 inches of mulch depth
@@ -526,7 +528,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function RHead({ label, D }: { label: string; D: typeof import("./JobReport")["default"] extends any ? any : any }) {
+function RHead({ label, D }: { label: string; D: Palette }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
       <span style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#9ca3af", fontFamily: "sans-serif" }}>{label}</span>
@@ -535,13 +537,11 @@ function RHead({ label, D }: { label: string; D: typeof import("./JobReport")["d
   );
 }
 
-function StatBox({ value, label, D }: { value: string; label: string; D: typeof import("./JobReport")["default"] extends any ? any : any }) {
-  return (
-    <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
-      <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{value}</div>
-      <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>{label}</div>
-    </div>
-  );
-}
+const StatBox: React.FC<{ value: string; label: string; D: Palette }> = ({ value, label, D }) => (
+  <div style={{ textAlign: "center", background: D.bgCard, borderRadius: "5px", padding: "8px" }}>
+    <div style={{ fontSize: "18px", fontWeight: "bold", color: D.primary, fontFamily: "sans-serif" }}>{value}</div>
+    <div style={{ fontSize: "9px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", marginTop: "2px" }}>{label}</div>
+  </div>
+);
 
 export default JobReport;
