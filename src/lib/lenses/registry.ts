@@ -1,5 +1,7 @@
+/// <reference types="@types/geojson" />
+
 import { LensEngine, LensProject, LensResultMap, LensState, LensInputMap } from "./types";
-import { runFenceLens }   from "./fencePro";
+import { runFenceLens }   from "./fencepro";
 
 // ─── Registry ─────────────────────────────────────────────────────────────────
 // Add new lenses here. Key = lens id.
@@ -45,7 +47,7 @@ export function runLenses(
 
 // ─── Helper: build LensProject from LandSelections + propertyData ────────────
 
-import { LandSelections } from "@/components/LandSelectors";
+import { LandSelections } from "../../components/LandSelectors";
 
 export function buildLensProject(
   propertyData: { acreage: number | null; boundary?: GeoJSON.Polygon | null },
@@ -62,7 +64,7 @@ export function buildLensProject(
 
 // ─── Helper: build FencePro inputs from LandSelections ───────────────────────
 
-import { FenceProInputs } from "./fencePro";
+import { FenceProInputs } from "./fencepro";
 
 export function buildFenceInputs(selections: LandSelections): FenceProInputs {
   // Build gate array from count + width
