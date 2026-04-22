@@ -31,27 +31,26 @@ export default function MapExplorer() {
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  // Intent is kept for internal logic but not exposed in UI
   const [selectedIntent] = useState<LandIntent | null>("evaluate");
   const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
   const [showDevTools, setShowDevTools] = useState(false);
   const [landSelections, setLandSelections] = useState<LandSelections>(DEFAULT_LAND_SELECTIONS);
+
+  // ── propertyData now includes boundary so JobReport can calculate real perimeter ──
   const [propertyData, setPropertyData] = useState<{
     acreage: number | null;
     squareMeters: number | null;
+    boundary: GeoJSON.Polygon | null;
   }>({
     acreage: null,
-    squareMeters: null
+    squareMeters: null,
+    boundary: null,
   });
 
   const handleLandSelectionChange = (key: keyof LandSelections, value: string) => {
-    setLandSelections(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    setLandSelections(prev => ({ ...prev, [key]: value }));
   };
 
-  // DEV TOOLS: Only accessible via Ctrl+Shift+D keyboard shortcut
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.ctrlKey && event.shiftKey && event.key === 'D') {
       event.preventDefault();
@@ -65,12 +64,11 @@ export default function MapExplorer() {
   }, [handleKeyDown]);
 
   const handleCreateProject = (boundary: GeoJSON.Polygon, newAcreage: number) => {
-    const intentLabel = selectedIntent 
-      ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label 
+    const intentLabel = selectedIntent
+      ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label
       : "";
     setProjectData({ boundary, acreage: newAcreage, intent: selectedIntent || undefined });
-    // acreage is already updated via onAcreageChange, but we ensure consistency here
-    setPropertyData(prev => ({ ...prev, acreage: newAcreage }));
+    setPropertyData(prev => ({ ...prev, acreage: newAcreage, boundary }));
     setProjectName(`${intentLabel ? `${intentLabel} - ` : ""}${newAcreage} acres`);
     setProjectDescription("");
     setShowCreateDialog(true);
@@ -81,7 +79,6 @@ export default function MapExplorer() {
       toast.error("Please sign in to create a project");
       return;
     }
-
     if (!projectName.trim()) {
       toast.error("Please enter a project name");
       return;
@@ -89,7 +86,6 @@ export default function MapExplorer() {
 
     setIsCreating(true);
     try {
-      // Create the project
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .insert({
@@ -105,7 +101,6 @@ export default function MapExplorer() {
 
       if (projectError) throw projectError;
 
-      // Save the manual selections as the "analysis" record
       if (project) {
         const { error: analysisError } = await supabase
           .from('analysis')
@@ -118,11 +113,7 @@ export default function MapExplorer() {
               intent: projectData.intent,
             },
             hazards: [],
-            path: {
-              equipment: [],
-              labor: {},
-              cost_factors: {},
-            }
+            path: { equipment: [], labor: {}, cost_factors: {} }
           });
 
         if (analysisError) {
@@ -143,7 +134,6 @@ export default function MapExplorer() {
 
   return (
     <div className="space-y-8 animate-fade-in max-w-7xl mx-auto">
-      {/* Hero Header */}
       <div className="text-center space-y-3 pb-2">
         <h1 className="text-4xl font-bold tracking-tight">Land Property Explorer</h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -151,41 +141,39 @@ export default function MapExplorer() {
         </p>
       </div>
 
-      {/* Map and Details */}
       <section className="space-y-4">
+        {/* Step 1 — Map */}
         <div className="flex items-center gap-3">
-          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
-            1
-          </span>
+          <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">1</span>
           <div>
             <h2 className="text-xl font-semibold">Find your property</h2>
-            <p className="text-sm text-muted-foreground">
-              Search for an address, then draw your boundary to calculate the area.
-            </p>
+            <p className="text-sm text-muted-foreground">Search for an address, then draw your boundary to calculate the area.</p>
           </div>
         </div>
         <Card className="border-2 overflow-visible">
           <CardContent className="p-0">
-            <MapDrawing 
-              readOnly={false} 
+            <MapDrawing
+              readOnly={false}
               onCreateProject={handleCreateProject}
-              onAcreageChange={(acreage, squareMeters) => setPropertyData({ acreage, squareMeters })}
+              onAcreageChange={(acreage, squareMeters) =>
+                setPropertyData(prev => ({ ...prev, acreage, squareMeters }))
+              }
+              // Pass boundary up whenever map updates so report always has latest polygon
+              onBoundaryChange={(boundary) =>
+                setPropertyData(prev => ({ ...prev, boundary }))
+              }
               intent={selectedIntent}
             />
           </CardContent>
         </Card>
 
-        {/* Land Property Selectors */}
+        {/* Step 2 — Selectors */}
         <div className="pt-4">
           <div className="flex items-center gap-3 mb-4">
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
-              2
-            </span>
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">2</span>
             <div>
               <h2 className="text-xl font-semibold">Refine details</h2>
-              <p className="text-sm text-muted-foreground">
-                Specify the land conditions to help with project planning.
-              </p>
+              <p className="text-sm text-muted-foreground">Specify the land conditions to help with project planning.</p>
             </div>
           </div>
           <Card className="p-6">
@@ -193,65 +181,47 @@ export default function MapExplorer() {
               selections={landSelections}
               onSelectionChange={handleLandSelectionChange}
             />
-            
             <div className="mt-8">
               <JobSummary selections={landSelections} />
             </div>
           </Card>
         </div>
 
-        {/* Finalized Job Report Section */}
+        {/* Step 3 — Report */}
         <div className="pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center gap-3 mb-6">
-            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">
-              3
-            </span>
+            <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">3</span>
             <div>
               <h2 className="text-xl font-semibold">Review Job Report</h2>
-              <p className="text-sm text-muted-foreground">
-                Finalized snapshot of your property details and selected land conditions.
-              </p>
+              <p className="text-sm text-muted-foreground">Finalized snapshot of your property details and selected land conditions.</p>
             </div>
           </div>
           <JobReport propertyData={propertyData} selections={landSelections} />
         </div>
       </section>
 
-      {/* Create Project Dialog */}
+      {/* Save Project Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Save Project</DialogTitle>
             <DialogDescription>
-              Save your property details and selections for future reference. 
+              Save your property details and selections for future reference.
               {projectData?.acreage && ` Area: ${projectData.acreage} acres`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Project Name</Label>
-              <Input
-                id="name"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                placeholder="Enter project name"
-              />
+              <Input id="name" value={projectName} onChange={(e) => setProjectName(e.target.value)} placeholder="Enter project name" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="description">Notes (optional)</Label>
-              <Textarea
-                id="description"
-                value={projectDescription}
-                onChange={(e) => setProjectDescription(e.target.value)}
-                placeholder="Add any notes about this property"
-                rows={3}
-              />
+              <Textarea id="description" value={projectDescription} onChange={(e) => setProjectDescription(e.target.value)} placeholder="Add any notes about this property" rows={3} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-              Cancel
-            </Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
             <Button onClick={handleSubmitProject} disabled={isCreating}>
               {isCreating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save Project
@@ -260,7 +230,6 @@ export default function MapExplorer() {
         </DialogContent>
       </Dialog>
 
-      {/* DEV TOOLS - Hidden by default, toggle with Ctrl+Shift+D */}
       {showDevTools && (
         <>
           <button
