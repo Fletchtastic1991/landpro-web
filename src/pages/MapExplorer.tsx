@@ -36,7 +36,7 @@ export default function MapExplorer() {
   const [showDevTools, setShowDevTools] = useState(false);
   const [landSelections, setLandSelections] = useState<LandSelections>(DEFAULT_LAND_SELECTIONS);
 
-  // ── propertyData now includes boundary so JobReport can calculate real perimeter ──
+  // propertyData includes boundary so JobReport can calculate real perimeter + corners
   const [propertyData, setPropertyData] = useState<{
     acreage: number | null;
     squareMeters: number | null;
@@ -47,8 +47,12 @@ export default function MapExplorer() {
     boundary: null,
   });
 
-  const handleLandSelectionChange = (key: keyof LandSelections, value: string) => {
-    setLandSelections(prev => ({ ...prev, [key]: value }));
+  // Handle both string (toggle) and number (gateCount) selection changes
+  const handleLandSelectionChange = (key: keyof LandSelections, value: string | number) => {
+    setLandSelections(prev => ({
+      ...prev,
+      [key]: value,
+    }));
   };
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -107,10 +111,14 @@ export default function MapExplorer() {
           .insert({
             project_id: project.id,
             land_classification: {
-              vegetation: landSelections.vegetation,
-              terrain: landSelections.terrain,
+              vegetation:    landSelections.vegetation,
+              terrain:       landSelections.terrain,
               accessibility: landSelections.accessibility,
-              intent: projectData.intent,
+              water:         landSelections.water,
+              structures:    landSelections.structures,
+              debris:        landSelections.debris,
+              gateCount:     landSelections.gateCount,
+              intent:        projectData.intent,
             },
             hazards: [],
             path: { equipment: [], labor: {}, cost_factors: {} }
@@ -142,7 +150,7 @@ export default function MapExplorer() {
       </div>
 
       <section className="space-y-4">
-        {/* Step 1 — Map */}
+        {/* Step 1 */}
         <div className="flex items-center gap-3">
           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">1</span>
           <div>
@@ -158,7 +166,6 @@ export default function MapExplorer() {
               onAcreageChange={(acreage, squareMeters) =>
                 setPropertyData(prev => ({ ...prev, acreage, squareMeters }))
               }
-              // Pass boundary up whenever map updates so report always has latest polygon
               onBoundaryChange={(boundary) =>
                 setPropertyData(prev => ({ ...prev, boundary }))
               }
@@ -167,7 +174,7 @@ export default function MapExplorer() {
           </CardContent>
         </Card>
 
-        {/* Step 2 — Selectors */}
+        {/* Step 2 */}
         <div className="pt-4">
           <div className="flex items-center gap-3 mb-4">
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">2</span>
@@ -187,7 +194,7 @@ export default function MapExplorer() {
           </Card>
         </div>
 
-        {/* Step 3 — Report */}
+        {/* Step 3 */}
         <div className="pt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex items-center gap-3 mb-6">
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">3</span>
@@ -200,7 +207,7 @@ export default function MapExplorer() {
         </div>
       </section>
 
-      {/* Save Project Dialog */}
+      {/* Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
