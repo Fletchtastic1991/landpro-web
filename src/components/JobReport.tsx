@@ -10,6 +10,7 @@ import {
   Droplets, Building2, Trash2
 } from "lucide-react";
 import { format } from "date-fns";
+import { runLenses, buildLensProject, buildFenceInputs } from "@/lib/lenses/registry";
 
 interface JobReportProps {
   propertyData: {
@@ -42,243 +43,49 @@ const D = {
   amberBrd:  "#854d0e",
 };
 
-// ─── Haversine (metres between two [lon,lat] points) ─────────────────────────
-
-function hav([lon1, lat1]: [number, number], [lon2, lat2]: [number, number]): number {
-  const R = 6371000;
-  const φ1 = (lat1 * Math.PI) / 180, φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180, Δλ = ((lon2 - lon1) * Math.PI) / 180;
-  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// ─── Perimeter ────────────────────────────────────────────────────────────────
-
-function getPerimeterFt(polygon: GeoJSON.Polygon): number {
-  const coords = polygon.coordinates[0] as [number, number][];
-  let m = 0;
-  for (let i = 0; i < coords.length - 1; i++) m += hav(coords[i], coords[i + 1]);
-  return Math.round(m * 3.28084);
-}
-
-// ─── Corner detection ─────────────────────────────────────────────────────────
-
-function countCorners(polygon: GeoJSON.Polygon, thresholdDeg = 25): number {
-  const coords = polygon.coordinates[0] as [number, number][];
-  const pts    = coords.slice(0, coords.length - 1);
-  if (pts.length < 3) return pts.length;
-  let corners = 0;
-  for (let i = 0; i < pts.length; i++) {
-    const prev = pts[(i - 1 + pts.length) % pts.length];
-    const curr = pts[i];
-    const next = pts[(i + 1) % pts.length];
-    const v1 = [curr[0] - prev[0], curr[1] - prev[1]];
-    const v2 = [next[0] - curr[0], next[1] - curr[1]];
-    const dot = v1[0]*v2[0] + v1[1]*v2[1];
-    const mag = Math.sqrt(v1[0]**2+v1[1]**2) * Math.sqrt(v2[0]**2+v2[1]**2);
-    if (mag === 0) continue;
-    const angleDeg = Math.acos(Math.max(-1, Math.min(1, dot/mag))) * 180/Math.PI;
-    if (angleDeg > thresholdDeg) corners++;
-  }
-  return corners;
-}
-
-// ─── Edge-by-edge post calculation (contractor-grade) ────────────────────────
-// For each edge: posts = floor(edge_length / spacing)
-// No ranges. Deterministic.
-
-function calcFenceEngine(polygon: GeoJSON.Polygon | null | undefined, acres: number, s: LandSelections): {
-  perimeterFt:      number;
-  isReal:           boolean;
-  effectiveFenceFt: number;
-  totalGateWidthFt: number;
-  cornerCount:      number;
-  linePosts:        number;
-  cornerPosts:      number;
-  gatePosts:        number;
-  totalPosts:       number;
-  spacingFt:        number;
-  edgeBreakdown:    { lengthFt: number; posts: number }[];
-} {
-  const spacingFt     = s.fenceSpacingFt ?? 8;
-  const gateCount     = s.gateCount      ?? 0;
-  const gateWidthFt   = s.gateWidthFt    ?? 12;
-  const totalGateW    = gateCount * gateWidthFt;
-
-  if (polygon?.coordinates?.[0]?.length > 2) {
-    const coords   = polygon.coordinates[0] as [number, number][];
-    const pts      = coords.slice(0, coords.length - 1); // remove closing coord
-
-    // Get real edge lengths in feet
-    const edgeLengths: number[] = [];
-    for (let i = 0; i < pts.length; i++) {
-      const next = pts[(i + 1) % pts.length];
-      edgeLengths.push(Math.round(hav(pts[i], next) * 3.28084));
-    }
-
-    const perimFt = edgeLengths.reduce((a, b) => a + b, 0);
-    const corners = countCorners(polygon);
-
-    // Subtract gate width proportionally from the longest edge(s)
-    // (simplification: subtract total gate width from full perimeter before post calc)
-    const effectiveFt = Math.max(0, perimFt - totalGateW);
-
-    // Edge-by-edge line posts
-    const edgeBreakdown = edgeLengths.map(len => {
-      // Scale each edge proportionally by (effectiveFt / perimFt)
-      const scaledLen = perimFt > 0 ? (len * effectiveFt / perimFt) : 0;
-      return { lengthFt: len, posts: Math.floor(scaledLen / spacingFt) };
-    });
-
-    const linePosts   = edgeBreakdown.reduce((sum, e) => sum + e.posts, 0);
-    const cornerPosts = corners;
-    const gatePosts   = gateCount * 2;
-    const totalPosts  = linePosts + cornerPosts + gatePosts;
-
-    return {
-      perimeterFt: perimFt, isReal: true,
-      effectiveFenceFt: effectiveFt, totalGateWidthFt: totalGateW,
-      cornerCount: corners, linePosts, cornerPosts, gatePosts, totalPosts,
-      spacingFt, edgeBreakdown,
-    };
-  }
-
-  // Fallback: square lot
-  const perimFt     = Math.round(Math.sqrt(acres * 43560) * 4);
-  const effectiveFt = Math.max(0, perimFt - totalGateW);
-  const linePosts   = Math.ceil(effectiveFt / spacingFt);
-  const cornerPosts = 4;
-  const gatePosts   = gateCount * 2;
-
-  return {
-    perimeterFt: perimFt, isReal: false,
-    effectiveFenceFt: effectiveFt, totalGateWidthFt: totalGateW,
-    cornerCount: 4, linePosts, cornerPosts, gatePosts,
-    totalPosts: linePosts + cornerPosts + gatePosts,
-    spacingFt, edgeBreakdown: [{ lengthFt: perimFt, posts: linePosts }],
-  };
-}
-
-// ─── COST ENGINE: acreage → hours → cost (not guessed from $/acre) ─────────────
-// Base production hours per acre by vegetation density
+// ─── Cost Engine (inline — will become ClearingPro lens later) ────────────────
 
 const PROD_HOURS: Record<string, Record<string, { min: number; max: number }>> = {
-  conservative: {
-    light:  { min: 12, max: 20 },
-    medium: { min: 28, max: 50 },
-    heavy:  { min: 60, max: 100 },
-  },
-  standard: {
-    light:  { min: 8,  max: 16 },
-    medium: { min: 18, max: 36 },
-    heavy:  { min: 40, max: 80 },
-  },
-  aggressive: {
-    light:  { min: 5,  max: 10 },
-    medium: { min: 12, max: 24 },
-    heavy:  { min: 28, max: 55 },
-  },
+  conservative: { light: { min: 12, max: 20 }, medium: { min: 28, max: 50 }, heavy: { min: 60, max: 100 } },
+  standard:     { light: { min: 8,  max: 16 }, medium: { min: 18, max: 36 }, heavy: { min: 40, max: 80  } },
+  aggressive:   { light: { min: 5,  max: 10 }, medium: { min: 12, max: 24 }, heavy: { min: 28, max: 55  } },
 };
+const TERRAIN_HRS  = { flat: 1.0, slight_slope: 1.20, steep: 1.50 };
+const ACCESS_HRS   = { easy: 1.0, moderate: 1.20,     difficult: 1.45 };
+const WATER_HRS    = { none: 1.0, pond_or_creek: 1.15, wetland: 1.30 };
+const MACHINE_RATE = 150;
+const LABOR_RATE   = 50;
 
-// Condition multipliers on hours (not on price)
-const TERRAIN_HRS = { flat: 1.0, slight_slope: 1.20, steep: 1.50 };
-const ACCESS_HRS  = { easy: 1.0, moderate: 1.20,     difficult: 1.45 };
-const WATER_HRS   = { none: 1.0, pond_or_creek: 1.15, wetland: 1.30 };
-
-// Rates (these are transparent and overridable later in Contractor Mode)
-const MACHINE_RATE = 150;  // $/hr
-const LABOR_RATE   = 50;   // $/hr per crew member
-
-// Fixed addons (not % stacks)
-function getAddons(s: LandSelections, totalHrsMid: number): { label: string; costLow: number; costHigh: number }[] {
-  const addons: { label: string; costLow: number; costHigh: number }[] = [];
-  if (s.debris === "light") addons.push({ label: "Light debris haul-off", costLow: 500,  costHigh: 1500 });
-  if (s.debris === "heavy") addons.push({ label: "Heavy debris haul-off", costLow: 2000, costHigh: 6000 });
-  if (s.water === "pond_or_creek") addons.push({ label: "Erosion control / silt fencing", costLow: 300, costHigh: 800 });
-  if (s.water === "wetland")       addons.push({ label: "Wetland erosion control + consultant", costLow: 1500, costHigh: 5000 });
-  if (s.accessibility === "difficult") addons.push({ label: "Equipment mobilization (remote site)", costLow: 1000, costHigh: 3000 });
-  if (s.structures === "fencing")      addons.push({ label: "Remove existing fencing", costLow: 300, costHigh: 1000 });
-  if (s.structures === "buildings_utilities") addons.push({ label: "Utility locate + demo", costLow: 500, costHigh: 2500 });
-  return addons;
+function getAddons(s: LandSelections) {
+  const a: { label: string; low: number; high: number }[] = [];
+  if (s.debris === "light") a.push({ label: "Light debris haul-off", low: 500,  high: 1500 });
+  if (s.debris === "heavy") a.push({ label: "Heavy debris haul-off", low: 2000, high: 6000 });
+  if (s.water === "pond_or_creek") a.push({ label: "Erosion control / silt fencing", low: 300, high: 800 });
+  if (s.water === "wetland")       a.push({ label: "Wetland erosion control + consultant", low: 1500, high: 5000 });
+  if (s.accessibility === "difficult") a.push({ label: "Equipment mobilization (remote site)", low: 1000, high: 3000 });
+  if (s.structures === "fencing")      a.push({ label: "Remove existing fencing", low: 300, high: 1000 });
+  if (s.structures === "buildings_utilities") a.push({ label: "Utility locate + demo", low: 500, high: 2500 });
+  return a;
 }
 
-interface CostResult {
-  rate:            string;
-  hoursPerAcre:    { min: number; max: number };
-  rawHours:        { min: number; max: number };
-  adjustedHours:   { min: number; max: number };
-  crewSize:        number;
-  machineCost:     { min: number; max: number };
-  laborCost:       { min: number; max: number };
-  addons:          { label: string; costLow: number; costHigh: number }[];
-  addonTotal:      { min: number; max: number };
-  totalCost:       { min: number; max: number };
-  terrainFactor:   number;
-  accessFactor:    number;
-  waterFactor:     number;
-}
-
-function calcCostEngine(acres: number, s: LandSelections): CostResult {
+function calcCostEngine(acres: number, s: LandSelections) {
   const rate   = s.productionRate ?? "standard";
   const base   = PROD_HOURS[rate][s.vegetation];
   const tFac   = TERRAIN_HRS[s.terrain];
   const aFac   = ACCESS_HRS[s.accessibility];
   const wFac   = WATER_HRS[s.water];
-
-  const rawMin = base.min * acres;
-  const rawMax = base.max * acres;
-  const adjMin = Math.round(rawMin * tFac * aFac * wFac * 10) / 10;
-  const adjMax = Math.round(rawMax * tFac * aFac * wFac * 10) / 10;
-
-  const crew  = s.vegetation === "light" ? 2 : s.vegetation === "medium" ? 3 : 5;
-
-  const machMin = Math.round(adjMin * MACHINE_RATE);
-  const machMax = Math.round(adjMax * MACHINE_RATE);
-  const labMin  = Math.round(adjMin * crew * LABOR_RATE);
-  const labMax  = Math.round(adjMax * crew * LABOR_RATE);
-
-  const midHrs = (adjMin + adjMax) / 2;
-  const addons = getAddons(s, midHrs);
-  const addonMin = addons.reduce((s, a) => s + a.costLow,  0);
-  const addonMax = addons.reduce((s, a) => s + a.costHigh, 0);
-
-  const totalMin = Math.round((machMin + labMin + addonMin) / 100) * 100;
-  const totalMax = Math.round((machMax + labMax + addonMax) / 100) * 100;
-
-  return {
-    rate,
-    hoursPerAcre:  base,
-    rawHours:      { min: Math.round(rawMin * 10)/10, max: Math.round(rawMax * 10)/10 },
-    adjustedHours: { min: adjMin, max: adjMax },
-    crewSize:      crew,
-    machineCost:   { min: machMin, max: machMax },
-    laborCost:     { min: labMin,  max: labMax  },
-    addons,
-    addonTotal:    { min: addonMin, max: addonMax },
-    totalCost:     { min: totalMin, max: totalMax },
-    terrainFactor: tFac,
-    accessFactor:  aFac,
-    waterFactor:   wFac,
-  };
+  const crew   = s.vegetation === "light" ? 2 : s.vegetation === "medium" ? 3 : 5;
+  const diff   = s.vegetation === "heavy" || s.terrain === "steep" || s.accessibility === "difficult" ? "Challenging"
+               : s.vegetation === "medium" || s.terrain === "slight_slope" ? "Moderate" : "Standard";
+  const adjMin = Math.round(base.min * acres * tFac * aFac * wFac * 10) / 10;
+  const adjMax = Math.round(base.max * acres * tFac * aFac * wFac * 10) / 10;
+  const addons = getAddons(s);
+  const addonMin = addons.reduce((s, a) => s + a.low,  0);
+  const addonMax = addons.reduce((s, a) => s + a.high, 0);
+  const totalMin = Math.round((adjMin * MACHINE_RATE + adjMin * crew * LABOR_RATE + addonMin) / 100) * 100;
+  const totalMax = Math.round((adjMax * MACHINE_RATE + adjMax * crew * LABOR_RATE + addonMax) / 100) * 100;
+  return { rate, base, adjMin, adjMax, crew, diff, addons, totalMin, totalMax, tFac, aFac, wFac };
 }
-
-// ─── Confidence ───────────────────────────────────────────────────────────────
-
-function getConfidence(s: LandSelections): { level: "Low" | "Medium" | "High"; reasons: string[] } {
-  const r: string[] = [];
-  if (s.vegetation === "heavy")               r.push("Heavy vegetation — density varies significantly across parcel");
-  if (s.terrain === "steep")                  r.push("Steep terrain — equipment efficiency hard to predict");
-  if (s.accessibility === "difficult")        r.push("Difficult access — mobilization costs vary by site");
-  if (s.water === "wetland")                  r.push("Wetland — regulatory and scope uncertainty");
-  if (s.water === "pond_or_creek")            r.push("Water present — erosion control scope unknown");
-  if (s.structures === "buildings_utilities") r.push("Utilities present — below-grade conditions unknown");
-  if (s.debris === "heavy")                   r.push("Heavy debris — disposal cost varies by material");
-  r.push("Site visit required to confirm all conditions");
-  const level: "Low" | "Medium" | "High" = r.length <= 2 ? "High" : r.length <= 4 ? "Medium" : "Low";
-  return { level, reasons: r };
-}
-
-// ─── Materials ────────────────────────────────────────────────────────────────
 
 function calcMaterials(acres: number) {
   const sqFt    = Math.round(acres * 43560 * 0.20);
@@ -286,7 +93,18 @@ function calcMaterials(acres: number) {
   return { sqFt, mulchCy };
 }
 
-// ─── Equipment ───────────────────────────────────────────────────────────────
+function getConfidence(s: LandSelections): { level: "Low" | "Medium" | "High"; reasons: string[] } {
+  const r: string[] = [];
+  if (s.vegetation === "heavy")               r.push("Heavy vegetation — density varies significantly");
+  if (s.terrain === "steep")                  r.push("Steep terrain — equipment efficiency unpredictable");
+  if (s.accessibility === "difficult")        r.push("Difficult access — mobilization costs vary");
+  if (s.water === "wetland")                  r.push("Wetland — regulatory and scope uncertainty");
+  if (s.water === "pond_or_creek")            r.push("Water present — erosion control scope unknown");
+  if (s.structures === "buildings_utilities") r.push("Utilities present — below-grade conditions unknown");
+  if (s.debris === "heavy")                   r.push("Heavy debris — disposal cost varies by material");
+  r.push("Site visit required to confirm all conditions");
+  return { level: r.length <= 2 ? "High" : r.length <= 4 ? "Medium" : "Low", reasons: r };
+}
 
 function getEquipment(s: LandSelections): string[] {
   const eq: string[] = [];
@@ -294,27 +112,27 @@ function getEquipment(s: LandSelections): string[] {
   else if (s.vegetation === "medium")  eq.push("Forestry mulcher", "Skid steer with grapple", "Mid-size bulldozer (D4–D5)");
   else                                 eq.push("Heavy-duty bulldozer (D6/D7)", "Excavator with thumb (20–30 ton)", "Forestry mulcher or tub grinder", "Haul trucks for debris removal");
   if (s.terrain === "steep")           eq.push("Track-mounted equipment only", "Erosion control materials");
-  if (s.accessibility === "difficult") eq.push("Low-ground-pressure equipment", "Access road construction may be required");
+  if (s.accessibility === "difficult") eq.push("Low-ground-pressure equipment");
   if (s.water === "pond_or_creek")     eq.push("Silt fencing / sediment barriers");
   if (s.water === "wetland")           eq.push("Wetland-rated equipment", "Environmental consultant required");
-  if (s.structures === "fencing")      eq.push("Fence removal tools / post puller");
-  if (s.structures === "buildings_utilities") eq.push("Utility locate service (call 811 first)", "Demolition equipment");
+  if (s.structures === "buildings_utilities") eq.push("Utility locate service (call 811 first)");
   if (s.debris === "heavy")            eq.push("Dumpsters / additional haul trucks");
   return eq;
 }
 
-// ─── Descriptors ─────────────────────────────────────────────────────────────
+// ─── Labels ───────────────────────────────────────────────────────────────────
 
-const VEG_LABEL = { light: "Light Vegetation", medium: "Medium Vegetation", heavy: "Heavy Vegetation" };
-const TER_LABEL = { flat: "Flat Terrain", slight_slope: "Slight Slope", steep: "Steep Terrain" };
-const ACC_LABEL = { easy: "Easy Access", moderate: "Moderate Access", difficult: "Difficult Access" };
-const WATER_LABEL  = { none: "None", pond_or_creek: "Pond or creek present", wetland: "Wetland area" };
-const STRUCT_LABEL = { none: "None", fencing: "Existing fencing", buildings_utilities: "Buildings / Utilities" };
-const DEBRIS_LABEL = { none: "None", light: "Light debris", heavy: "Heavy debris / trash" };
-const RATE_LABEL   = { conservative: "Conservative", standard: "Standard", aggressive: "Aggressive" };
+const VEG_L   = { light: "Light Vegetation", medium: "Medium Vegetation", heavy: "Heavy Vegetation" };
+const TER_L   = { flat: "Flat Terrain", slight_slope: "Slight Slope", steep: "Steep Terrain" };
+const ACC_L   = { easy: "Easy Access", moderate: "Moderate Access", difficult: "Difficult Access" };
+const WAT_L   = { none: "None", pond_or_creek: "Pond or creek present", wetland: "Wetland area" };
+const STR_L   = { none: "None", fencing: "Existing fencing", buildings_utilities: "Buildings / Utilities" };
+const DEB_L   = { none: "None", light: "Light debris", heavy: "Heavy debris / trash" };
+const RATE_L  = { conservative: "Conservative", standard: "Standard", aggressive: "Aggressive" };
+const FENCE_L = { wood: "Wood", chain_link: "Chain Link", farm: "Farm / Agricultural" };
 
 function genReportNum() {
-  return `LP-${format(new Date(), "yyyyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+  return `LP-${format(new Date(), "yyyyMMdd")}-${Math.random().toString(36).substring(2,6).toUpperCase()}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -327,11 +145,23 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
   const acres   = propertyData.acreage ?? 0;
   const hasAcre = acres > 0;
 
-  const fence   = hasAcre ? calcFenceEngine(propertyData.boundary, acres, selections) : null;
-  const cost    = hasAcre ? calcCostEngine(acres, selections) : null;
-  const mats    = hasAcre ? calcMaterials(acres) : null;
-  const equip   = getEquipment(selections);
-  const conf    = getConfidence(selections);
+  // ── Run lens engine ──────────────────────────────────────────────────────
+  const lensProject = buildLensProject(propertyData, selections);
+  const fenceInputs = buildFenceInputs(selections);
+  const lensResults = runLenses(
+    lensProject,
+    { fencing: true },
+    { fencing: fenceInputs }
+  );
+  const fence = hasAcre ? lensResults["fencing"] : null;
+  const fenceSum = fence?.summary as any;
+  const fenceDet = fence?.details as any;
+
+  // ── Inline cost engine (ClearingPro lens — coming next) ──────────────────
+  const cost  = hasAcre ? calcCostEngine(acres, selections) : null;
+  const mats  = hasAcre ? calcMaterials(acres) : null;
+  const equip = getEquipment(selections);
+  const conf  = getConfidence(selections);
 
   const confColor = { High: "#4ade80", Medium: "#fbbf24", Low: "#f87171" }[conf.level];
   const confBadge = {
@@ -339,6 +169,8 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
     Medium: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
     Low:    "bg-red-500/20 text-red-400 border-red-500/30",
   }[conf.level];
+
+  const fenceType = (selections as any).fenceType ?? "farm";
 
   // ── Pre-generate ──────────────────────────────────────────────────────────
   if (!generated) {
@@ -356,15 +188,14 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
         </CardHeader>
         <CardContent className="p-6 space-y-6">
 
-          {/* 6-field grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { icon: Ruler,     label: "Property Size", value: hasAcre ? `${acres} Acres` : "Not defined",       color: "bg-blue-500/10 text-blue-400" },
-              { icon: Leaf,      label: "Vegetation",    value: VEG_LABEL[selections.vegetation],                  color: "bg-green-500/10 text-green-400" },
-              { icon: Mountain,  label: "Terrain",       value: TER_LABEL[selections.terrain],                     color: "bg-amber-500/10 text-amber-400" },
-              { icon: MapPin,    label: "Accessibility", value: ACC_LABEL[selections.accessibility],               color: "bg-purple-500/10 text-purple-400" },
-              { icon: Droplets,  label: "Water",         value: WATER_LABEL[selections.water],                     color: "bg-cyan-500/10 text-cyan-400" },
-              { icon: Building2, label: "Structures",    value: STRUCT_LABEL[selections.structures],               color: "bg-orange-500/10 text-orange-400" },
+              { icon: Ruler,     label: "Property Size", value: hasAcre ? `${acres} Acres` : "Not defined", color: "bg-blue-500/10 text-blue-400" },
+              { icon: Leaf,      label: "Vegetation",    value: VEG_L[selections.vegetation],                color: "bg-green-500/10 text-green-400" },
+              { icon: Mountain,  label: "Terrain",       value: TER_L[selections.terrain],                   color: "bg-amber-500/10 text-amber-400" },
+              { icon: MapPin,    label: "Accessibility", value: ACC_L[selections.accessibility],             color: "bg-purple-500/10 text-purple-400" },
+              { icon: Droplets,  label: "Water",         value: WAT_L[selections.water],                     color: "bg-cyan-500/10 text-cyan-400" },
+              { icon: Building2, label: "Structures",    value: STR_L[selections.structures],                color: "bg-orange-500/10 text-orange-400" },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="flex items-center justify-between p-3 rounded-lg border bg-background/50">
                 <div className="flex items-center gap-2">
@@ -376,34 +207,30 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             ))}
           </div>
 
-          {/* Production rate + debris callouts */}
           <div className="flex flex-wrap gap-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-primary/5 text-xs">
-              <span className="text-muted-foreground">Production Rate:</span>
-              <span className="text-primary font-semibold">{RATE_LABEL[selections.productionRate]}</span>
-            </div>
-            {fence && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-primary/5 text-xs">
-                <span className="text-muted-foreground">Post spacing:</span>
-                <span className="text-primary font-semibold">{selections.fenceSpacingFt} ft</span>
-              </div>
-            )}
+            <Chip label="Production Rate" value={RATE_L[selections.productionRate]} />
+            <Chip label="Fence Type"      value={FENCE_L[fenceType as keyof typeof FENCE_L] ?? fenceType} />
+            <Chip label="Post Spacing"    value={`${selections.fenceSpacingFt ?? 8} ft`} />
             {(selections.gateCount ?? 0) > 0 && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-primary/5 text-xs">
-                <span className="text-muted-foreground">{selections.gateCount} gate{(selections.gateCount??0) > 1 ? "s" : ""} × {selections.gateWidthFt} ft =</span>
-                <span className="text-primary font-semibold">{(selections.gateCount??0) * (selections.gateWidthFt??12)} ft subtracted</span>
-              </div>
+              <Chip label={`${selections.gateCount} gate${(selections.gateCount??0)>1?"s":""}`}
+                    value={`${(selections.gateCount??0) * (selections.gateWidthFt??12)} ft deducted`} />
             )}
           </div>
 
-          {/* Live calc preview */}
+          {selections.debris !== "none" && (
+            <div className="flex items-center gap-3 p-3 rounded-lg border bg-amber-500/5 border-amber-500/20">
+              <Trash2 className="h-4 w-4 text-amber-400 flex-shrink-0" />
+              <p className="text-sm text-amber-400 font-medium">{DEB_L[selections.debris]} — disposal costs factored in</p>
+            </div>
+          )}
+
           {hasAcre && fence && cost && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: fence.isReal ? "True Perimeter" : "Est. Perimeter ⁽*⁾",    value: `${fence.perimeterFt.toLocaleString()} ft` },
-                { label: `Total Posts (${fence.cornerCount} corners, ${selections.gateCount??0} gates)`, value: `${fence.totalPosts}` },
-                { label: `Hours (${RATE_LABEL[selections.productionRate]})`,          value: `${cost.adjustedHours.min}–${cost.adjustedHours.max}` },
-                { label: "Est. Total Cost",                                            value: `$${cost.totalCost.min.toLocaleString()}–$${cost.totalCost.max.toLocaleString()}` },
+                { label: fenceSum?.isRealBoundary ? "True Perimeter" : "Est. Perimeter ⁽*⁾", value: `${(fenceSum?.perimeterFt ?? 0).toLocaleString()} ft` },
+                { label: `Total Posts (${FENCE_L[fenceType as keyof typeof FENCE_L]})`,       value: `${fenceSum?.totalPosts ?? "—"}` },
+                { label: `Clearing Hours (${RATE_L[selections.productionRate]})`,              value: `${cost.adjMin}–${cost.adjMax} hrs` },
+                { label: "Est. Total Cost",                                                     value: `$${cost.totalMin.toLocaleString()}–$${cost.totalMax.toLocaleString()}` },
               ].map(({ label, value }) => (
                 <div key={label} className="p-3 rounded-lg border bg-primary/5 text-center">
                   <p className="text-lg font-bold text-primary">{value}</p>
@@ -413,37 +240,36 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             </div>
           )}
 
-          {!fence?.isReal && hasAcre && (
-            <p className="text-xs text-muted-foreground/70 italic">
-              ⁽*⁾ Perimeter estimated from square-lot assumption. Draw your boundary for a real measurement.
-            </p>
+          {fence?.warnings && fence.warnings.length > 0 && (
+            <div className="space-y-1">
+              {fence.warnings.map((w, i) => (
+                <p key={i} className="text-xs text-amber-400">⚠ {w}</p>
+              ))}
+            </div>
           )}
 
-          {/* Cost badge */}
           {cost && (
             <div className="p-4 rounded-lg border bg-primary/5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-primary/10"><DollarSign className="h-5 w-5 text-primary" /></div>
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Estimated Total Cost</p>
-                  <p className="text-2xl font-bold text-primary">${cost.totalCost.min.toLocaleString()} – ${cost.totalCost.max.toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">Based on hours × rates, not $/acre guessing</p>
+                  <p className="text-2xl font-bold text-primary">${cost.totalMin.toLocaleString()} – ${cost.totalMax.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground">Derived from hours × rates, not $/acre guessing</p>
                 </div>
               </div>
               <Badge className={cn("border text-xs", confBadge)}>{conf.level} Confidence</Badge>
             </div>
           )}
 
-          {/* CTA */}
           {hasAcre ? (
             <div className="pt-2 space-y-3">
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {[
-                  fence?.isReal ? "Real perimeter + corners from polygon" : "Perimeter estimate",
-                  "Gate width subtracted before post calc",
-                  "Edge-by-edge post layout",
-                  "Hours → cost (not $/acre guessing)",
-                  "Fixed addons (not % stacks)",
+                  "FencePro lens — geometry + structure + materials + labor",
+                  fenceSum?.isRealBoundary ? "Real perimeter from polygon" : "Perimeter estimate",
+                  "Gate width deducted from fence length",
+                  "Hours × rates cost model",
                   "Locked PDF report",
                 ].map(item => (
                   <div key={item} className="flex items-center gap-1">
@@ -528,11 +354,11 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
           <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: "1px", background: D.border, border: `1px solid ${D.border}`, borderRadius: "8px", overflow: "hidden", marginBottom: "28px" }}>
             {[
               { l: "Property Size", v: hasAcre ? `${acres} acres` : "—" },
-              { l: "Vegetation",    v: VEG_LABEL[selections.vegetation] },
-              { l: "Terrain",       v: TER_LABEL[selections.terrain] },
-              { l: "Accessibility", v: ACC_LABEL[selections.accessibility] },
-              { l: "Water",         v: WATER_LABEL[selections.water] },
-              { l: "Debris",        v: DEBRIS_LABEL[selections.debris] },
+              { l: "Vegetation",    v: VEG_L[selections.vegetation] },
+              { l: "Terrain",       v: TER_L[selections.terrain] },
+              { l: "Accessibility", v: ACC_L[selections.accessibility] },
+              { l: "Water",         v: WAT_L[selections.water] },
+              { l: "Debris",        v: DEB_L[selections.debris] },
             ].map((item, i) => (
               <div key={i} style={{ background: D.bgCard, padding: "12px 10px" }}>
                 <div style={{ fontSize: "8px", color: D.dim, fontFamily: "sans-serif", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "3px" }}>{item.l}</div>
@@ -541,106 +367,124 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             ))}
           </div>
 
-          {/* ── FENCE ENGINE ── */}
-          {fence && (
+          {/* FencePro Section */}
+          {fence && fenceDet && (
             <>
-              <RH label="🔲  Fence Estimate" D={D} />
+              <RH label={`🔲  FencePro — ${FENCE_L[fenceType as keyof typeof FENCE_L] ?? fenceType} Fence`} D={D} />
               <div style={{ background: D.bgSect, border: `1px solid ${D.border}`, borderRadius: "6px", padding: "16px 18px", marginBottom: "20px" }}>
 
-                {/* Perimeter */}
-                <Row label={`Boundary perimeter ${fence.isReal ? "(measured from drawn shape)" : "(est. square lot)"}`}
-                     value={`${fence.perimeterFt.toLocaleString()} ft`} D={D} bold />
-                {fence.totalGateWidthFt > 0 && (
-                  <Row label={`Gate deduction: ${selections.gateCount} gate${(selections.gateCount??0)>1?"s":""} × ${selections.gateWidthFt} ft`}
-                       value={`− ${fence.totalGateWidthFt} ft`} D={D} dim />
+                {/* Geometry */}
+                <Row label={`Perimeter ${fenceSum?.isRealBoundary ? "(measured from drawn boundary)" : "(est. square lot)"}`}
+                     value={`${(fenceSum?.perimeterFt ?? 0).toLocaleString()} ft`} D={D} bold />
+                {(fenceDet?.totalGateWidthFt ?? 0) > 0 && (
+                  <Row label={`Gate deduction: ${selections.gateCount ?? 0} gate${(selections.gateCount??0)>1?"s":""} × ${selections.gateWidthFt ?? 12} ft`}
+                       value={`− ${fenceDet.totalGateWidthFt} ft`} D={D} dim />
                 )}
                 <Row label="Effective fence length"
-                     value={`${fence.effectiveFenceFt.toLocaleString()} ft`} D={D} />
+                     value={`${(fenceSum?.effectiveFenceFt ?? 0).toLocaleString()} ft`} D={D} />
 
                 {/* Post breakdown */}
                 <div style={{ marginTop: "12px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
-                  <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
-                    Post Calculation (edge-by-edge at {fence.spacingFt} ft spacing)
-                  </div>
-                  <Row label={`Line posts: ${fence.effectiveFenceFt.toLocaleString()} ft ÷ ${fence.spacingFt} ft/post`}
-                       value={`${fence.linePosts} posts`} D={D} />
-                  <Row label={`Corner posts: ${fence.cornerCount} vertices detected`}
-                       value={`+ ${fence.cornerPosts} posts`} D={D} dim />
-                  <Row label={`Gate posts: ${selections.gateCount??0} gates × 2`}
-                       value={`+ ${fence.gatePosts} posts`} D={D} dim />
+                  <Sect label={`Post Layout (${fenceDet?.spacingFt ?? 8} ft spacing, ${FENCE_L[fenceType as keyof typeof FENCE_L] ?? fenceType})`} D={D} />
+                  <Row label={`Line posts: ${(fenceSum?.effectiveFenceFt ?? 0).toLocaleString()} ft ÷ ${fenceDet?.spacingFt ?? 8} ft`}
+                       value={`${fenceDet?.linePosts ?? "—"} posts`} D={D} />
+                  <Row label={`Corner posts (${fenceDet?.cornerCount ?? "—"} corners detected)`}
+                       value={`+ ${fenceDet?.cornerPosts ?? "—"} posts`} D={D} dim />
+                  <Row label={`Gate posts (${selections.gateCount ?? 0} gates × 2)`}
+                       value={`+ ${fenceDet?.gatePosts ?? "—"} posts`} D={D} dim />
                   <div style={{ borderTop: `1px solid ${D.borderAcc}`, marginTop: "8px", paddingTop: "8px", display: "flex", justifyContent: "space-between" }}>
                     <span style={{ fontSize: "14px", fontWeight: "700", color: D.text, fontFamily: "sans-serif" }}>Total Posts</span>
-                    <span style={{ fontSize: "22px", fontWeight: "800", color: D.primary, fontFamily: "sans-serif" }}>{fence.totalPosts}</span>
-                  </div>
-                  <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic", marginTop: "6px" }}>
-                    Adjust for terrain variation, gate width preferences, and local building code.
-                    {!fence.isReal && " ⚠ Square-lot estimate — draw your boundary for real numbers."}
+                    <span style={{ fontSize: "22px", fontWeight: "800", color: D.primary, fontFamily: "sans-serif" }}>{fenceSum?.totalPosts ?? "—"}</span>
                   </div>
                 </div>
+
+                {/* Materials */}
+                <div style={{ marginTop: "12px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
+                  <Sect label="Materials" D={D} />
+                  <Row label={`Concrete (${fenceDet?.fenceTypeRules?.concretePerPost ?? "—"} bags/post)`}
+                       value={`${fenceDet?.concreteBags ?? "—"} bags`} D={D} />
+                  {(fenceDet?.railLinearFt ?? 0) > 0 && (
+                    <Row label={`Rails (${fenceDet?.fenceTypeRules?.railsPerSpan ?? "—"} per span)`}
+                         value={`${(fenceDet?.railLinearFt ?? 0).toLocaleString()} linear ft`} D={D} />
+                  )}
+                  {(fenceDet?.wireLinearFt ?? 0) > 0 && (
+                    <Row label={`Wire strands (${fenceDet?.fenceTypeRules?.wireStrands ?? "—"} strands)`}
+                         value={`${(fenceDet?.wireLinearFt ?? 0).toLocaleString()} linear ft`} D={D} />
+                  )}
+                  <Row label="Fence material length"
+                       value={`${(fenceDet?.fenceMaterialFt ?? 0).toLocaleString()} ft`} D={D} />
+                </div>
+
+                {/* Labor + Cost */}
+                <div style={{ marginTop: "12px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
+                  <Sect label="Labor + Cost (FencePro)" D={D} />
+                  <Row label={`Posts/day: ${fenceDet?.fenceTypeRules?.postsPerDay ?? "—"} base × ${fenceDet?.terrainFactor ?? 1} terrain factor`}
+                       value={`${Math.round(fenceDet?.adjustedPostsPerDay ?? 0)} posts/day`} D={D} />
+                  <Row label={`Days required: ${fenceSum?.totalPosts ?? "—"} posts ÷ ${Math.round(fenceDet?.adjustedPostsPerDay ?? 1)} posts/day`}
+                       value={`${fenceSum?.daysLow ?? "—"}–${fenceSum?.daysHigh ?? "—"} days`} D={D} />
+                  <Row label={`Labor: ${fenceSum?.daysLow ?? "—"}–${fenceSum?.daysHigh ?? "—"} days × $${fenceDet?.rates?.dailyRateUSD ?? "—"}/day`}
+                       value={`$${(fenceDet?.laborCostLow ?? 0).toLocaleString()} – $${(fenceDet?.laborCostHigh ?? 0).toLocaleString()}`} D={D} />
+                  <Row label={`Materials: posts + concrete`}
+                       value={`$${(fenceDet?.materialCostBase ?? 0).toLocaleString()}`} D={D} />
+                  <div style={{ borderTop: `1px solid ${D.borderAcc}`, marginTop: "8px", paddingTop: "8px", display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: D.text, fontFamily: "sans-serif" }}>FencePro Total (incl. {Math.round(((fenceDet?.rates?.markup ?? 1.2) - 1) * 100)}% markup)</span>
+                    <span style={{ fontSize: "20px", fontWeight: "800", color: D.primary, fontFamily: "sans-serif" }}>
+                      ${(fence.cost?.low ?? 0).toLocaleString()} – ${(fence.cost?.high ?? 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Warnings */}
+                {fence.warnings && fence.warnings.length > 0 && (
+                  <div style={{ marginTop: "10px" }}>
+                    {fence.warnings.map((w, i) => (
+                      <div key={i} style={{ fontSize: "10px", color: D.amber, fontFamily: "sans-serif", marginBottom: "3px" }}>⚠ {w}</div>
+                    ))}
+                  </div>
+                )}
               </div>
             </>
           )}
 
-          {/* ── COST ENGINE ── */}
+          {/* Cost Engine */}
           {cost && (
             <>
-              <RH label={`💵  Cost Estimate — ${RATE_LABEL[cost.rate]} Production Rate`} D={D} />
+              <RH label={`💵  Clearing Cost — ${RATE_L[cost.rate]} Production Rate`} D={D} />
               <div style={{ background: D.bgSect, border: `1px solid ${D.borderAcc}`, borderRadius: "6px", padding: "16px 18px", marginBottom: "20px" }}>
+                <Sect label="Hours Required" D={D} />
+                <Row label={`${acres} acres × ${cost.base.min}–${cost.base.max} hrs/acre (${VEG_L[selections.vegetation].toLowerCase()}, ${RATE_L[cost.rate].toLowerCase()})`}
+                     value={`${cost.adjMin}–${cost.adjMax} hrs`} D={D} bold />
+                {cost.tFac > 1 && <Row label={`Terrain factor ×${cost.tFac}`} value="" D={D} dim />}
+                {cost.aFac > 1 && <Row label={`Access factor ×${cost.aFac}`}  value="" D={D} dim />}
+                {cost.wFac > 1 && <Row label={`Water factor ×${cost.wFac}`}   value="" D={D} dim />}
 
-                {/* Hours derivation */}
-                <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
-                  Step 1 — Hours Required
-                </div>
-                <Row label={`Base: ${acres} acres × ${cost.hoursPerAcre.min}–${cost.hoursPerAcre.max} hrs/acre (${VEG_LABEL[selections.vegetation].toLowerCase()}, ${RATE_LABEL[cost.rate].toLowerCase()})`}
-                     value={`${cost.rawHours.min}–${cost.rawHours.max} hrs`} D={D} bold />
-                {cost.terrainFactor > 1 && <Row label={`Terrain factor (${TER_LABEL[selections.terrain].toLowerCase()}) ×${cost.terrainFactor}`} value="" D={D} dim />}
-                {cost.accessFactor > 1  && <Row label={`Access factor (${ACC_LABEL[selections.accessibility].toLowerCase()}) ×${cost.accessFactor}`} value="" D={D} dim />}
-                {cost.waterFactor > 1   && <Row label={`Water factor (${WATER_LABEL[selections.water]}) ×${cost.waterFactor}`} value="" D={D} dim />}
-                <Row label="Adjusted total hours (conditions applied)"
-                     value={`${cost.adjustedHours.min}–${cost.adjustedHours.max} hrs`} D={D} />
-
-                {/* Cost derivation */}
-                <div style={{ marginTop: "14px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
-                  <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
-                    Step 2 — Labor Cost
-                  </div>
-                  <Row label={`Machine: ${cost.adjustedHours.min}–${cost.adjustedHours.max} hrs × $${MACHINE_RATE}/hr`}
-                       value={`$${cost.machineCost.min.toLocaleString()} – $${cost.machineCost.max.toLocaleString()}`} D={D} />
-                  <Row label={`Crew: ${cost.adjustedHours.min}–${cost.adjustedHours.max} hrs × ${cost.crewSize} operators × $${LABOR_RATE}/hr`}
-                       value={`$${cost.laborCost.min.toLocaleString()} – $${cost.laborCost.max.toLocaleString()}`} D={D} />
+                <div style={{ marginTop: "12px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
+                  <Sect label="Labor Cost" D={D} />
+                  <Row label={`Machine: ${cost.adjMin}–${cost.adjMax} hrs × $${MACHINE_RATE}/hr`}
+                       value={`$${(cost.adjMin*MACHINE_RATE).toLocaleString()} – $${(cost.adjMax*MACHINE_RATE).toLocaleString()}`} D={D} />
+                  <Row label={`Crew: ${cost.adjMin}–${cost.adjMax} hrs × ${cost.crew} ops × $${LABOR_RATE}/hr`}
+                       value={`$${(cost.adjMin*cost.crew*LABOR_RATE).toLocaleString()} – $${(cost.adjMax*cost.crew*LABOR_RATE).toLocaleString()}`} D={D} />
                 </div>
 
-                {/* Addons */}
                 {cost.addons.length > 0 && (
-                  <div style={{ marginTop: "14px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
-                    <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
-                      Step 3 — Fixed Addons
-                    </div>
+                  <div style={{ marginTop: "12px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
+                    <Sect label="Fixed Addons" D={D} />
                     {cost.addons.map((a, i) => (
-                      <Row key={i} label={a.label}
-                           value={`$${a.costLow.toLocaleString()} – $${a.costHigh.toLocaleString()}`} D={D} dim />
+                      <Row key={i} label={a.label} value={`$${a.low.toLocaleString()} – $${a.high.toLocaleString()}`} D={D} dim />
                     ))}
                   </div>
                 )}
 
-                {/* Total */}
-                <div style={{ borderTop: `2px solid ${D.primaryDk}`, marginTop: "14px", paddingTop: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "15px", fontWeight: "700", color: D.text, fontFamily: "sans-serif" }}>Total Estimate</span>
-                    <span style={{ fontSize: "28px", fontWeight: "800", color: D.primary, fontFamily: "sans-serif" }}>
-                      ${cost.totalCost.min.toLocaleString()} – ${cost.totalCost.max.toLocaleString()}
-                    </span>
-                  </div>
-                  <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic", marginTop: "6px" }}>
-                    Rates: machine $150/hr, crew $50/hr/operator. Adjust in Contractor Mode (coming soon).
-                  </div>
+                <div style={{ borderTop: `2px solid ${D.primaryDk}`, marginTop: "14px", paddingTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "15px", fontWeight: "700", color: D.text, fontFamily: "sans-serif" }}>Clearing Total</span>
+                  <span style={{ fontSize: "26px", fontWeight: "800", color: D.primary, fontFamily: "sans-serif" }}>
+                    ${cost.totalMin.toLocaleString()} – ${cost.totalMax.toLocaleString()}
+                  </span>
                 </div>
 
-                {/* Confidence */}
                 <div style={{ marginTop: "12px", borderTop: `1px solid ${D.border}`, paddingTop: "10px" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
-                      <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>Why confidence is {conf.level}</div>
                       {conf.reasons.map((r, i) => (
                         <div key={i} style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", marginBottom: "2px" }}>
                           {i < conf.reasons.length - 1 ? `⚠ ${r}` : `ℹ ${r}`}
@@ -665,9 +509,9 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                 <SB value={mats.sqFt.toLocaleString()}   label="Landscaped sq ft"  D={D} />
                 <SB value={`${mats.mulchCy} cy`}          label={'Mulch (3" depth)'} D={D} />
               </div>
-              <div style={{ fontSize: "10px", color: D.dim, fontStyle: "italic", marginBottom: "24px" }}>
+              <p style={{ fontSize: "10px", color: D.dim, fontStyle: "italic", marginBottom: "24px" }}>
                 Assuming ~20% of lot landscaped ({mats.sqFt.toLocaleString()} sq ft), 3-inch mulch depth.
-              </div>
+              </p>
             </>
           )}
 
@@ -702,7 +546,16 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
   );
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── UI Helpers ───────────────────────────────────────────────────────────────
+
+function Chip({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-primary/5 text-xs">
+      <span className="text-muted-foreground">{label}:</span>
+      <span className="text-primary font-semibold">{value}</span>
+    </div>
+  );
+}
 
 function RH({ label, D }: { label: string; D: any }) {
   return (
@@ -710,6 +563,12 @@ function RH({ label, D }: { label: string; D: any }) {
       <span style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#9ca3af", fontFamily: "sans-serif" }}>{label}</span>
       <div style={{ flex: 1, height: "1px", background: "#1f3829" }} />
     </div>
+  );
+}
+
+function Sect({ label, D }: { label: string; D: any }) {
+  return (
+    <div style={{ fontSize: "10px", color: D.dim, fontFamily: "sans-serif", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>{label}</div>
   );
 }
 
