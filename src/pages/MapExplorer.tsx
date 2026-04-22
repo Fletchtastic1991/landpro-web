@@ -36,23 +36,14 @@ export default function MapExplorer() {
   const [showDevTools, setShowDevTools] = useState(false);
   const [landSelections, setLandSelections] = useState<LandSelections>(DEFAULT_LAND_SELECTIONS);
 
-  // propertyData includes boundary so JobReport can calculate real perimeter + corners
   const [propertyData, setPropertyData] = useState<{
     acreage: number | null;
     squareMeters: number | null;
     boundary: GeoJSON.Polygon | null;
-  }>({
-    acreage: null,
-    squareMeters: null,
-    boundary: null,
-  });
+  }>({ acreage: null, squareMeters: null, boundary: null });
 
-  // Handle both string (toggle) and number (gateCount) selection changes
   const handleLandSelectionChange = (key: keyof LandSelections, value: string | number) => {
-    setLandSelections(prev => ({
-      ...prev,
-      [key]: value,
-    }));
+    setLandSelections(prev => ({ ...prev, [key]: value }));
   };
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
@@ -68,9 +59,7 @@ export default function MapExplorer() {
   }, [handleKeyDown]);
 
   const handleCreateProject = (boundary: GeoJSON.Polygon, newAcreage: number) => {
-    const intentLabel = selectedIntent
-      ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label
-      : "";
+    const intentLabel = selectedIntent ? INTENT_OPTIONS.find(o => o.id === selectedIntent)?.label : "";
     setProjectData({ boundary, acreage: newAcreage, intent: selectedIntent || undefined });
     setPropertyData(prev => ({ ...prev, acreage: newAcreage, boundary }));
     setProjectName(`${intentLabel ? `${intentLabel} - ` : ""}${newAcreage} acres`);
@@ -79,26 +68,20 @@ export default function MapExplorer() {
   };
 
   const handleSubmitProject = async () => {
-    if (!user || !projectData) {
-      toast.error("Please sign in to create a project");
-      return;
-    }
-    if (!projectName.trim()) {
-      toast.error("Please enter a project name");
-      return;
-    }
+    if (!user || !projectData) { toast.error("Please sign in to create a project"); return; }
+    if (!projectName.trim()) { toast.error("Please enter a project name"); return; }
 
     setIsCreating(true);
     try {
       const { data: project, error: projectError } = await supabase
         .from('projects')
         .insert({
-          user_id: user.id,
-          name: projectName.trim(),
+          user_id:     user.id,
+          name:        projectName.trim(),
           description: projectDescription.trim() || null,
-          boundary: projectData.boundary as any,
-          acreage: projectData.acreage,
-          status: 'draft'
+          boundary:    projectData.boundary as any,
+          acreage:     projectData.acreage,
+          status:      'draft'
         })
         .select()
         .single();
@@ -106,27 +89,24 @@ export default function MapExplorer() {
       if (projectError) throw projectError;
 
       if (project) {
-        const { error: analysisError } = await supabase
-          .from('analysis')
-          .insert({
-            project_id: project.id,
-            land_classification: {
-              vegetation:    landSelections.vegetation,
-              terrain:       landSelections.terrain,
-              accessibility: landSelections.accessibility,
-              water:         landSelections.water,
-              structures:    landSelections.structures,
-              debris:        landSelections.debris,
-              gateCount:     landSelections.gateCount,
-              intent:        projectData.intent,
-            },
-            hazards: [],
-            path: { equipment: [], labor: {}, cost_factors: {} }
-          });
-
-        if (analysisError) {
-          console.error('Failed to save project details:', analysisError);
-        }
+        await supabase.from('analysis').insert({
+          project_id: project.id,
+          land_classification: {
+            vegetation:     landSelections.vegetation,
+            terrain:        landSelections.terrain,
+            accessibility:  landSelections.accessibility,
+            water:          landSelections.water,
+            structures:     landSelections.structures,
+            debris:         landSelections.debris,
+            productionRate: landSelections.productionRate,
+            gateCount:      landSelections.gateCount,
+            gateWidthFt:    landSelections.gateWidthFt,
+            fenceSpacingFt: landSelections.fenceSpacingFt,
+            intent:         projectData.intent,
+          },
+          hazards: [],
+          path: { equipment: [], labor: {}, cost_factors: {} }
+        });
       }
 
       toast.success("Project created successfully!");
@@ -155,7 +135,9 @@ export default function MapExplorer() {
           <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">1</span>
           <div>
             <h2 className="text-xl font-semibold">Find your property</h2>
-            <p className="text-sm text-muted-foreground">Search for an address, then draw your boundary to calculate the area.</p>
+            <p className="text-sm text-muted-foreground">
+              Search for an address or use your current location, then draw your boundary to calculate the area.
+            </p>
           </div>
         </div>
         <Card className="border-2 overflow-visible">
@@ -180,14 +162,11 @@ export default function MapExplorer() {
             <span className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-bold shadow-sm">2</span>
             <div>
               <h2 className="text-xl font-semibold">Refine details</h2>
-              <p className="text-sm text-muted-foreground">Specify the land conditions to help with project planning.</p>
+              <p className="text-sm text-muted-foreground">Specify land conditions and fence planning details.</p>
             </div>
           </div>
           <Card className="p-6">
-            <LandSelectors
-              selections={landSelections}
-              onSelectionChange={handleLandSelectionChange}
-            />
+            <LandSelectors selections={landSelections} onSelectionChange={handleLandSelectionChange} />
             <div className="mt-8">
               <JobSummary selections={landSelections} />
             </div>
@@ -207,7 +186,6 @@ export default function MapExplorer() {
         </div>
       </section>
 
-      {/* Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent>
           <DialogHeader>
@@ -239,12 +217,9 @@ export default function MapExplorer() {
 
       {showDevTools && (
         <>
-          <button
-            onClick={() => setShowDevTools(false)}
-            className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-semibold shadow-lg border bg-amber-500 text-black border-amber-600 hover:bg-amber-400 transition-colors"
-          >
-            <Bug className="h-4 w-4" />
-            DEV TOOLS (Ctrl+Shift+D to hide)
+          <button onClick={() => setShowDevTools(false)}
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-semibold shadow-lg border bg-amber-500 text-black border-amber-600 hover:bg-amber-400 transition-colors">
+            <Bug className="h-4 w-4" /> DEV TOOLS (Ctrl+Shift+D to hide)
           </button>
           <MemoryInspector parcelId={debugParcelId} />
         </>
