@@ -3,10 +3,12 @@
  * src/engines/ClearingPro.ts
  *
  * PURE LOGIC — no UI, no formatting, no React
- * Input: field selections + acreage
- * Output: hours, costs, equipment, confidence
  *
- * Multipliers sourced from pricingConfig.ts (single source of truth)
+ * CONFIDENCE RULE (matches SitePro philosophy):
+ * - Medium is the MAXIMUM for any field estimate
+ * - High is never awarded — a field estimate from 3 toggles
+ *   cannot be High confidence by definition
+ * - This is intentional, not a bug
  */
 
 import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig";
@@ -27,9 +29,15 @@ export interface ClearingProInput {
 // ─── Output ───────────────────────────────────────────────────────────────────
 
 export interface ClearingAddon {
-  label:  string;
-  low:    number;
-  high:   number;
+  label: string;
+  low:   number;
+  high:  number;
+}
+
+export interface ClearingRiskFactor {
+  label:    string;       // short label for display
+  detail:   string;       // full explanation
+  severity: "high" | "medium" | "low";
 }
 
 export interface ClearingProResult {
@@ -37,8 +45,8 @@ export interface ClearingProResult {
   reasonIfBlocked?: string;
 
   hours: {
-    base:     { min: number; max: number };  // before condition multipliers
-    adjusted: { min: number; max: number };  // after all multipliers
+    base:     { min: number; max: number };
+    adjusted: { min: number; max: number };
     factors:  { terrain: number; access: number; water: number };
   };
 
@@ -55,42 +63,46 @@ export interface ClearingProResult {
   };
 
   materials: {
-    landscapedSqFt:    number;
-    mulchCubicYards:   number;
-    assumedLandscapePct: number;
+    landscapedSqFt:       number;
+    mulchCubicYards:      number;
+    assumedLandscapePct:  number;
   };
 
   equipment: string[];
 
+  // Confidence: Medium is the ceiling for a field estimate
   confidence: {
-    level:   "High" | "Medium" | "Low";
+    level:   "Medium" | "Low";   // High is intentionally excluded
     reasons: string[];
+    disclaimer: string;
   };
+
+  // Dedicated risk factors — shown prominently in report
+  riskFactors: ClearingRiskFactor[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const MACHINE_RATE_PER_HR = 150; // $/hr
-const LABOR_RATE_PER_HR   = 50;  // $/hr per operator
+const MACHINE_RATE = 150; // $/hr
+const LABOR_RATE   = 50;  // $/hr per operator
 
-// Production hours per acre by vegetation × production rate
 const PROD_HOURS = {
   conservative: { light: [12, 20], medium: [28, 50], heavy: [60, 100] },
   standard:     { light: [8,  16], medium: [18, 36], heavy: [40, 80]  },
   aggressive:   { light: [5,  10], medium: [12, 24], heavy: [28, 55]  },
 } as const;
 
-// Condition multipliers on HOURS (not price) — sourced from pricingConfig
+// Hour multipliers sourced from pricingConfig (single source of truth)
 const TERRAIN_HRS: Record<ClearingProInput["terrain"], number> = {
   flat:         1.0,
-  slight_slope: DEFAULT_PRICING_CONFIG.terrain.slight_slope,  // 1.25
-  steep:        DEFAULT_PRICING_CONFIG.terrain.steep,         // 1.75
+  slight_slope: DEFAULT_PRICING_CONFIG.terrain.slight_slope,
+  steep:        DEFAULT_PRICING_CONFIG.terrain.steep,
 };
 
 const ACCESS_HRS: Record<ClearingProInput["accessibility"], number> = {
   easy:      1.0,
-  moderate:  DEFAULT_PRICING_CONFIG.accessibility.moderate,   // 1.25
-  difficult: DEFAULT_PRICING_CONFIG.accessibility.difficult,  // 1.5
+  moderate:  DEFAULT_PRICING_CONFIG.accessibility.moderate,
+  difficult: DEFAULT_PRICING_CONFIG.accessibility.difficult,
 };
 
 const WATER_HRS = {
@@ -104,14 +116,15 @@ const WATER_HRS = {
 export function runClearingPro(input: ClearingProInput): ClearingProResult {
   if (input.acreage <= 0) {
     return {
-      status:           "blocked",
-      reasonIfBlocked:  "Acreage must be greater than zero",
-      hours:            { base: { min: 0, max: 0 }, adjusted: { min: 0, max: 0 }, factors: { terrain: 1, access: 1, water: 1 } },
-      crew:             { size: 0, difficulty: "Standard" },
-      cost:             { machine: { min: 0, max: 0 }, labor: { min: 0, max: 0 }, addons: [], total: { min: 0, max: 0 } },
-      materials:        { landscapedSqFt: 0, mulchCubicYards: 0, assumedLandscapePct: 20 },
-      equipment:        [],
-      confidence:       { level: "Low", reasons: ["No acreage defined"] },
+      status:          "blocked",
+      reasonIfBlocked: "Acreage must be greater than zero",
+      hours:      { base: { min: 0, max: 0 }, adjusted: { min: 0, max: 0 }, factors: { terrain: 1, access: 1, water: 1 } },
+      crew:       { size: 0, difficulty: "Standard" },
+      cost:       { machine: { min: 0, max: 0 }, labor: { min: 0, max: 0 }, addons: [], total: { min: 0, max: 0 } },
+      materials:  { landscapedSqFt: 0, mulchCubicYards: 0, assumedLandscapePct: 20 },
+      equipment:  [],
+      confidence: { level: "Low", reasons: ["No acreage defined"], disclaimer: "Cannot estimate without acreage." },
+      riskFactors: [],
     };
   }
 
@@ -127,27 +140,25 @@ export function runClearingPro(input: ClearingProInput): ClearingProResult {
 
   // ── Crew ───────────────────────────────────────────────────────────────────
 
-  const crewSize  = input.vegetation === "light" ? 2 : input.vegetation === "medium" ? 3 : 5;
+  const crewSize: number  = input.vegetation === "light" ? 2 : input.vegetation === "medium" ? 3 : 5;
   const difficulty: "Standard" | "Moderate" | "Challenging" =
     input.vegetation === "heavy" || input.terrain === "steep" || input.accessibility === "difficult"
       ? "Challenging"
       : input.vegetation === "medium" || input.terrain === "slight_slope"
-      ? "Moderate"
-      : "Standard";
+      ? "Moderate" : "Standard";
 
   // ── Cost ───────────────────────────────────────────────────────────────────
 
-  const machineMin = Math.round(adjMin * MACHINE_RATE_PER_HR);
-  const machineMax = Math.round(adjMax * MACHINE_RATE_PER_HR);
-  const laborMin   = Math.round(adjMin * crewSize * LABOR_RATE_PER_HR);
-  const laborMax   = Math.round(adjMax * crewSize * LABOR_RATE_PER_HR);
+  const machineMin = Math.round(adjMin * MACHINE_RATE);
+  const machineMax = Math.round(adjMax * MACHINE_RATE);
+  const laborMin   = Math.round(adjMin * crewSize * LABOR_RATE);
+  const laborMax   = Math.round(adjMax * crewSize * LABOR_RATE);
 
-  const addons: ClearingAddon[] = buildAddons(input);
-  const addonMin = addons.reduce((s, a) => s + a.low,  0);
-  const addonMax = addons.reduce((s, a) => s + a.high, 0);
-
-  const totalMin = Math.round((machineMin + laborMin + addonMin) / 100) * 100;
-  const totalMax = Math.round((machineMax + laborMax + addonMax) / 100) * 100;
+  const addons    = buildAddons(input);
+  const addonMin  = addons.reduce((s, a) => s + a.low,  0);
+  const addonMax  = addons.reduce((s, a) => s + a.high, 0);
+  const totalMin  = Math.round((machineMin + laborMin + addonMin) / 100) * 100;
+  const totalMax  = Math.round((machineMax + laborMax + addonMax) / 100) * 100;
 
   // ── Materials ──────────────────────────────────────────────────────────────
 
@@ -155,40 +166,36 @@ export function runClearingPro(input: ClearingProInput): ClearingProResult {
   const landscapedSqFt = Math.round(input.acreage * 43560 * (pct / 100));
   const mulchCuYds     = Math.round(((landscapedSqFt * (3 / 12)) / 27) * 10) / 10;
 
-  // ── Equipment ─────────────────────────────────────────────────────────────
+  // ── Risk factors (dedicated, prominent) ───────────────────────────────────
 
-  const equipment = buildEquipment(input);
+  const riskFactors = buildRiskFactors(input);
 
-  // ── Confidence ────────────────────────────────────────────────────────────
+  // ── Confidence (Medium ceiling — intentional) ─────────────────────────────
 
-  const confidence = buildConfidence(input);
+  const confidence = buildConfidence(input, riskFactors);
 
   return {
     status: "available",
-
     hours: {
-      base:     { min: Math.round(baseMin * input.acreage * 10) / 10, max: Math.round(baseMax * input.acreage * 10) / 10 },
+      base:     { min: +(baseMin * input.acreage).toFixed(1), max: +(baseMax * input.acreage).toFixed(1) },
       adjusted: { min: adjMin, max: adjMax },
       factors:  { terrain: tFac, access: aFac, water: wFac },
     },
-
     crew: { size: crewSize, difficulty },
-
     cost: {
       machine: { min: machineMin, max: machineMax },
       labor:   { min: laborMin,   max: laborMax   },
       addons,
       total:   { min: totalMin,   max: totalMax   },
     },
-
     materials: {
       landscapedSqFt,
-      mulchCubicYards: mulchCuYds,
+      mulchCubicYards:     mulchCuYds,
       assumedLandscapePct: pct,
     },
-
-    equipment,
+    equipment:   buildEquipment(input),
     confidence,
+    riskFactors,
   };
 }
 
@@ -196,13 +203,13 @@ export function runClearingPro(input: ClearingProInput): ClearingProResult {
 
 function buildAddons(input: ClearingProInput): ClearingAddon[] {
   const a: ClearingAddon[] = [];
-  if (input.debris === "light")               a.push({ label: "Light debris haul-off",              low: 500,  high: 1500  });
-  if (input.debris === "heavy")               a.push({ label: "Heavy debris haul-off",              low: 2000, high: 6000  });
-  if (input.water === "pond_or_creek")        a.push({ label: "Erosion control / silt fencing",     low: 300,  high: 800   });
+  if (input.debris === "light")               a.push({ label: "Light debris haul-off",               low: 500,  high: 1500  });
+  if (input.debris === "heavy")               a.push({ label: "Heavy debris haul-off",               low: 2000, high: 6000  });
+  if (input.water === "pond_or_creek")        a.push({ label: "Erosion control / silt fencing",      low: 300,  high: 800   });
   if (input.water === "wetland")              a.push({ label: "Wetland erosion control + consultant", low: 1500, high: 5000  });
-  if (input.accessibility === "difficult")    a.push({ label: "Equipment mobilization (remote site)", low: 1000, high: 3000  });
-  if (input.structures === "fencing")         a.push({ label: "Remove existing fencing",            low: 300,  high: 1000  });
-  if (input.structures === "buildings_utilities") a.push({ label: "Utility locate + demo",          low: 500,  high: 2500  });
+  if (input.accessibility === "difficult")    a.push({ label: "Equipment mobilization",              low: 1000, high: 3000  });
+  if (input.structures === "fencing")         a.push({ label: "Remove existing fencing",             low: 300,  high: 1000  });
+  if (input.structures === "buildings_utilities") a.push({ label: "Utility locate + demo",           low: 500,  high: 2500  });
   return a;
 }
 
@@ -220,20 +227,87 @@ function buildEquipment(input: ClearingProInput): string[] {
   return eq;
 }
 
-function buildConfidence(input: ClearingProInput): ClearingProResult["confidence"] {
+function buildRiskFactors(input: ClearingProInput): ClearingRiskFactor[] {
+  const r: ClearingRiskFactor[] = [];
+
+  // Always-present risks (every field estimate)
+  r.push({
+    label:    "Hours estimate is pre-site-visit",
+    detail:   "Machine hours are based on acreage and reported conditions only. Actual density, stump diameter, and ground conditions can vary significantly.",
+    severity: "medium",
+  });
+  r.push({
+    label:    "Permitting requirements unknown",
+    detail:   "County clearing permits, burn regulations, and disposal requirements vary. Verify before mobilizing equipment.",
+    severity: "medium",
+  });
+
+  // Condition-specific risks
+  if (input.vegetation === "heavy") {
+    r.push({ label: "Dense canopy conceals ground hazards", detail: "Stumps, debris piles, sinkholes, and unmarked features may not be visible until clearing begins. Budget for discovery time.", severity: "high" });
+    r.push({ label: "Timber value assessment recommended", detail: "Merchantable timber present. A timber cruise before clearing may recover value that offsets clearing cost.", severity: "medium" });
+  }
+  if (input.terrain === "steep") {
+    r.push({ label: "Steep slope — rollover risk", detail: "Slopes above 15% require track-mounted equipment and certified operators. OSHA regulations apply.", severity: "high" });
+    r.push({ label: "Erosion control plan required", detail: "Most counties require an erosion control plan for land disturbance on slopes. This is not included in base estimate.", severity: "high" });
+  }
+  if (input.terrain === "slight_slope") {
+    r.push({ label: "Monitor for erosion at drainage breaks", detail: "Slight slopes can concentrate runoff during and after clearing. Silt fencing at low points is recommended.", severity: "low" });
+  }
+  if (input.water === "wetland") {
+    r.push({ label: "Wetland disturbance may require federal permit", detail: "Army Corps of Engineers Section 404 permit may be required. Clearing near wetland boundary could be restricted by law.", severity: "high" });
+  }
+  if (input.water === "pond_or_creek") {
+    r.push({ label: "Sediment runoff into waterway", detail: "Erosion control and setback requirements apply near ponds and creeks. Check local buffer ordinances.", severity: "high" });
+    r.push({ label: "Equipment access near water edge", detail: "Soft ground near water can limit machine access and increase per-hour cost.", severity: "medium" });
+  }
+  if (input.accessibility === "difficult") {
+    r.push({ label: "Remote access — mobilization cost unpredictable", detail: "Haul road construction or temporary access work may be required before any clearing begins. Not included in base estimate.", severity: "high" });
+  }
+  if (input.structures === "buildings_utilities") {
+    r.push({ label: "Call 811 before any ground disturbance", detail: "Underground utilities must be located before excavation. Damage to utilities creates liability and project delays.", severity: "high" });
+  }
+  if (input.debris === "heavy") {
+    r.push({ label: "Hazardous material inspection recommended", detail: "Heavy debris sites may contain tires, chemicals, or construction waste requiring special disposal.", severity: "high" });
+  }
+
+  // Clearing hours disclaimer
+  r.push({
+    label:    "Hours exclude debris haul-off time",
+    detail:   "Machine clearing hours shown do not include loading and hauling time for removed material. Add 20–40% for haul-off depending on disposal distance.",
+    severity: "medium",
+  });
+
+  return r;
+}
+
+function buildConfidence(
+  input: ClearingProInput,
+  riskFactors: ClearingRiskFactor[]
+): ClearingProResult["confidence"] {
+  // RULE: Medium is the ceiling for any field estimate
+  // We never award High — a preliminary estimate from 3 toggles
+  // cannot be High confidence by definition (matches SitePro philosophy)
+
+  const highSeverityCount = riskFactors.filter(r => r.severity === "high").length;
+
   const reasons: string[] = [];
-  if (input.vegetation === "heavy")               reasons.push("Heavy vegetation — density varies significantly");
-  if (input.terrain === "steep")                  reasons.push("Steep terrain — equipment efficiency unpredictable");
-  if (input.accessibility === "difficult")        reasons.push("Difficult access — mobilization costs vary");
-  if (input.water === "wetland")                  reasons.push("Wetland — regulatory and scope uncertainty");
-  if (input.water === "pond_or_creek")            reasons.push("Water present — erosion control scope unknown");
-  if (input.structures === "buildings_utilities") reasons.push("Utilities present — below-grade conditions unknown");
-  if (input.debris === "heavy")                   reasons.push("Heavy debris — disposal cost varies by material");
-  reasons.push("Site visit required to confirm all conditions");
+  if (input.vegetation === "heavy")               reasons.push("Heavy vegetation — density varies significantly across parcel");
+  if (input.terrain === "steep")                  reasons.push("Steep terrain — equipment efficiency hard to predict");
+  if (input.accessibility === "difficult")        reasons.push("Difficult access — mobilization costs vary by site");
+  if (input.water === "wetland")                  reasons.push("Wetland — regulatory scope unknown");
+  if (input.water === "pond_or_creek")            reasons.push("Water present — erosion scope unknown");
+  if (input.structures === "buildings_utilities") reasons.push("Utilities present — below-grade unknown");
+  if (input.debris === "heavy")                   reasons.push("Heavy debris — disposal cost unpredictable");
 
-  const level: "High" | "Medium" | "Low" =
-    reasons.length <= 2 ? "High" :
-    reasons.length <= 4 ? "Medium" : "Low";
+  // Always add the fundamental disclaimer
+  reasons.push("Field estimate only — site visit required to confirm");
 
-  return { level, reasons };
+  const level: "Medium" | "Low" = highSeverityCount >= 2 ? "Low" : "Medium";
+
+  const disclaimer = level === "Low"
+    ? "Multiple high-severity risk factors present. This estimate has wide uncertainty. On-site assessment strongly recommended before quoting."
+    : "This is a preliminary field estimate. Actual costs depend on conditions found on-site. Use for budgeting only — not for final bid.";
+
+  return { level, reasons, disclaimer };
 }
