@@ -225,9 +225,10 @@ export function buildReportView(
 
     // Risk factors sorted by severity: high → medium → low
     const severityRank: Record<string, number> = { high: 3, medium: 2, low: 1 };
-    const sortedRisks = [...(c.riskFactors ?? [])].sort(
-      (a, b) => severityRank[b.severity] - severityRank[a.severity]
-    );
+    const safeRisks = Array.isArray(c.riskFactors) ? c.riskFactors : [];
+    const sortedRisks = [...safeRisks].sort(
+  (a, b) => severityRank[b.severity] - severityRank[a.severity]
+);
 
     clearing = {
       available:      true,
@@ -257,7 +258,7 @@ export function buildReportView(
         perAcreNote:  c.cost.perAcreNote ?? "",
       },
 
-      equipment: c.equipment ?? [],
+      equipment: Array.isArray(c.equipment) ? c.equipment : [],
 
       riskFactors: sortedRisks.map(r => ({
         label:       r.label,
@@ -266,7 +267,7 @@ export function buildReportView(
         color:       SEVERITY_COLORS[r.severity] ?? "#9ca3af",
       })),
 
-      nonLinearFlags: c.nonLinearFlags ?? [],
+      nonLinearFlags: Array.isArray(c.nonLinearFlags) ? c.nonLinearFlags : [],
 
       confidence: {
         level:   c.confidence.level,
