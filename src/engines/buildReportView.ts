@@ -249,7 +249,7 @@ export function buildReportView(
       cost: {
         machineRange: fmtRange$(c.cost.machine.min, c.cost.machine.max),
         laborRange:   fmtRange$(c.cost.labor.min,   c.cost.labor.max),
-        addons: (c.cost.addons ?? []).map(a => ({
+        addons: (c.cost.addons ?? []).map((a: { label: any; low: number; high: number; }) => ({
           label: a.label,
           range: fmtRange$(a.low, a.high),
         })),

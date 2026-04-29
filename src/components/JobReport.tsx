@@ -19,8 +19,8 @@ import {
   FileText, Droplets, Building2, Trash2
 } from "lucide-react";
 import { format } from "date-fns";
-import { runLandProEngine } from "@/engines/LandProEngine";
-import { buildReportView, ReportView } from "@/engines/buildReportView";
+import { runLandProEngine } from "@/engines/LandProEngine.ts";
+import { buildReportView, ReportView } from "@/engines/buildReportView.ts";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
