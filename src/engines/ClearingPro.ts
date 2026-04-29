@@ -8,7 +8,7 @@
  * cannot be High confidence by definition.
  */
 
-import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig";
+import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig.ts";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
