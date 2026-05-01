@@ -50,8 +50,8 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { parcelStateService } from '@/lib/parcel-state';
-import type { RealityEventInput, DerivedState } from '@/lib/parcel-state';
+import { parcelStateService } from '@/lib/parcel-state/parcelStateService.ts';
+import type { RealityEventInput, DerivedState } from '@/lib/parcel-state/parcelStateService.ts';
 
 const PSO_QUERY_KEY = 'parcel-state';
 

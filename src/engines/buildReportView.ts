@@ -3,13 +3,7 @@
  * src/engines/buildReportView.ts
  *
  * UI ADAPTER — shapes raw engine output for display.
- * Updated to match ClearingProResult v2 shape:
- *   - confidence.breakdown (not confidence.reasons)
- *   - crew.assumption (new field)
- *   - cost.perAcre + cost.perAcreNote (new fields)
- *   - riskFactors with .consequence (not .detail)
- *   - nonLinearFlags (new field)
- *   - materials section REMOVED (mulch removed per Phase 1)
+ * No logic here — only formatting, null safety, and label mapping.
  */
 
 import { LandProEngineOutput } from "./LandProEngine.ts";
@@ -17,11 +11,25 @@ import { LandSelections } from "@/components/LandSelectors.ts";
 
 // ─── Display types ────────────────────────────────────────────────────────────
 
+export interface ReportViewCostDriver {
+  label:  string;
+  impact: string;
+}
+
+export interface ReportViewRealityAnchor {
+  baselineRange:  string;
+  baselineLabel:  string;
+  exceedsBy:      string | null;
+  exceedsReasons: string[];
+}
+
 export interface ReportViewRiskFactor {
   label:       string;
   consequence: string;
   severity:    "high" | "medium" | "low";
-  color:       string;  // hex for report styling
+  color:       string;
+  bgColor:     string;
+  borderColor: string;
 }
 
 export interface ReportViewConfidence {
@@ -75,16 +83,20 @@ export interface ReportViewFence {
 export interface ReportViewClearing {
   available:      boolean;
   productionRate: string;
+
   hours: {
     base:     string;
     adjusted: string;
     factors:  string[];
   };
+
   crew: {
-    size:       number;
-    difficulty: string;
-    assumption: string;  // visible anchor
+    size:          number;
+    difficulty:    string;
+    assumption:    string;
+    justification: string;  // why this crew size
   };
+
   cost: {
     machineRange: string;
     laborRange:   string;
@@ -93,10 +105,20 @@ export interface ReportViewClearing {
     perAcreRange: string;
     perAcreNote:  string;
   };
-  equipment:      string[];
-  riskFactors:    ReportViewRiskFactor[];
+
+  // Fix #1 — centralized cost drivers shown above total
+  costDrivers: ReportViewCostDriver[];
+
+  // Fix #4 — reality anchor
+  realityAnchor: ReportViewRealityAnchor;
+
+  equipment:  string[];
+  riskFactors: ReportViewRiskFactor[];
+
+  // Fix #3 — diagnosis-level flags
   nonLinearFlags: string[];
-  confidence:     ReportViewConfidence;
+
+  confidence: ReportViewConfidence;
 }
 
 export interface ReportView {
@@ -125,10 +147,11 @@ const CONF_COLORS: Record<string, string> = {
   Low:    "#f87171",
 };
 
-const SEVERITY_COLORS: Record<string, string> = {
-  high:   "#f87171",
-  medium: "#fbbf24",
-  low:    "#60a5fa",
+// Severity → display colors (bg, text, border)
+const SEVERITY_DISPLAY: Record<string, { color: string; bgColor: string; borderColor: string }> = {
+  high:   { color: "#f87171", bgColor: "#1f0a0a", borderColor: "#7f1d1d" },
+  medium: { color: "#fcd34d", bgColor: "#1c1208", borderColor: "#854d0e" },
+  low:    { color: "#60a5fa", bgColor: "#0c1929", borderColor: "#1e3a5f" },
 };
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -161,7 +184,7 @@ export function buildReportView(
 
   const fenceType = (selections as any).fenceType ?? "farm";
 
-  // ── Fence view ─────────────────────────────────────────────────────────────
+  // ── Fence ──────────────────────────────────────────────────────────────────
 
   let fence: ReportViewFence | null = null;
 
@@ -189,8 +212,8 @@ export function buildReportView(
       spacingFt: p.spacingFt,
       materials: {
         concreteBags:    `${m.concreteBags} bags`,
-        railLinearFt:    m.railLinearFt > 0  ? `${m.railLinearFt.toLocaleString()} linear ft` : null,
-        wireLinearFt:    m.wireLinearFt > 0  ? `${m.wireLinearFt.toLocaleString()} linear ft` : null,
+        railLinearFt:    m.railLinearFt > 0 ? `${m.railLinearFt.toLocaleString()} linear ft` : null,
+        wireLinearFt:    m.wireLinearFt > 0 ? `${m.wireLinearFt.toLocaleString()} linear ft` : null,
         fenceMaterialFt: fmtFt(m.fenceMaterialFt),
         concretePerPost: m.fenceTypeRules.concretePerPost,
         railsPerSpan:    m.fenceTypeRules.railsPerSpan,
@@ -210,25 +233,17 @@ export function buildReportView(
     };
   }
 
-  // ── Clearing view ──────────────────────────────────────────────────────────
+  // ── Clearing ───────────────────────────────────────────────────────────────
 
   let clearing: ReportViewClearing | null = null;
 
   if (engine.clearing?.status === "available") {
     const c = engine.clearing;
 
-    // Factor strings — only show factors that actually applied
     const factors: string[] = [];
     if (c.hours.factors.terrain > 1) factors.push(`Terrain ×${c.hours.factors.terrain}`);
     if (c.hours.factors.access  > 1) factors.push(`Access ×${c.hours.factors.access}`);
     if (c.hours.factors.water   > 1) factors.push(`Water ×${c.hours.factors.water}`);
-
-    // Risk factors sorted by severity: high → medium → low
-    const severityRank: Record<string, number> = { high: 3, medium: 2, low: 1 };
-    const safeRisks = Array.isArray(c.riskFactors) ? c.riskFactors : [];
-    const sortedRisks = [...safeRisks].sort(
-  (a, b) => severityRank[b.severity] - severityRank[a.severity]
-);
 
     clearing = {
       available:      true,
@@ -241,33 +256,49 @@ export function buildReportView(
       },
 
       crew: {
-        size:       c.crew.size,
-        difficulty: c.crew.difficulty,
-        assumption: c.crew.assumption ?? "",
+        size:          c.crew.size,
+        difficulty:    c.crew.difficulty,
+        assumption:    c.crew.assumption   ?? "",
+        justification: c.crew.justification ?? "",
       },
 
       cost: {
         machineRange: fmtRange$(c.cost.machine.min, c.cost.machine.max),
         laborRange:   fmtRange$(c.cost.labor.min,   c.cost.labor.max),
-        addons: (c.cost.addons ?? []).map((a: { label: any; low: number; high: number; }) => ({
-          label: a.label,
-          range: fmtRange$(a.low, a.high),
-        })),
+        addons: (c.cost.addons ?? []).map(a => ({ label: a.label, range: fmtRange$(a.low, a.high) })),
         totalRange:   fmtRange$(c.cost.total.min,   c.cost.total.max),
         perAcreRange: fmtRange$(c.cost.perAcre?.min ?? 0, c.cost.perAcre?.max ?? 0),
         perAcreNote:  c.cost.perAcreNote ?? "",
       },
 
-      equipment: Array.isArray(c.equipment) ? c.equipment : [],
+      // Fix #1 — cost drivers
+      costDrivers: (c.costDrivers ?? []).map(d => ({
+        label:  d.label,
+        impact: d.impact,
+      })),
 
-      riskFactors: sortedRisks.map(r => ({
+      // Fix #4 — reality anchor
+      realityAnchor: {
+        baselineRange:  c.realityAnchor?.baselineRange  ?? "",
+        baselineLabel:  c.realityAnchor?.baselineLabel  ?? "",
+        exceedsBy:      c.realityAnchor?.exceedsBy      ?? null,
+        exceedsReasons: c.realityAnchor?.exceedsReasons ?? [],
+      },
+
+      equipment: c.equipment ?? [],
+
+      // Already sorted high → medium → low in engine
+      riskFactors: (c.riskFactors ?? []).map(r => ({
         label:       r.label,
         consequence: r.consequence,
         severity:    r.severity,
-        color:       SEVERITY_COLORS[r.severity] ?? "#9ca3af",
+        color:       SEVERITY_DISPLAY[r.severity]?.color       ?? "#9ca3af",
+        bgColor:     SEVERITY_DISPLAY[r.severity]?.bgColor     ?? "#0d1f13",
+        borderColor: SEVERITY_DISPLAY[r.severity]?.borderColor ?? "#1f3829",
       })),
 
-      nonLinearFlags: Array.isArray(c.nonLinearFlags) ? c.nonLinearFlags : [],
+      // Fix #3 — diagnosis flags
+      nonLinearFlags: c.nonLinearFlags ?? [],
 
       confidence: {
         level:   c.confidence.level,
