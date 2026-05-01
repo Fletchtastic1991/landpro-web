@@ -16,7 +16,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
+import { Badge } from "@/components/ui/badge.ts";
 import { 
   Target, 
   TrendingUp, 
@@ -30,8 +30,8 @@ import {
   AlertCircle,
   Info
 } from "lucide-react";
-import { useReadiness } from "@/hooks/useReadiness.tsx";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
+import { useReadiness } from "@/hooks/useReadiness.ts";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.ts";
 
 interface LandAnalysis {
   vegetation: {

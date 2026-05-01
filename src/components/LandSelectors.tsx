@@ -1,8 +1,8 @@
 import React from "react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group.tsx";
-import { Label } from "@/components/ui/label.tsx";
-import { Input } from "@/components/ui/input.tsx";
-import { cn } from "@/lib/utils.tsx";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group.ts";
+import { Label } from "@/components/ui/label.ts";
+import { Input } from "@/components/ui/input.ts";
+import { cn } from "@/lib/utils.ts";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

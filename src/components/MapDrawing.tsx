@@ -6,13 +6,13 @@ import * as turf from "@turf/turf";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
-import { Button } from "@/components/ui/button.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group.tsx";
+import { Button } from "@/components/ui/button.ts";
+import { Badge } from "@/components/ui/badge.ts";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group.ts";
 import { Loader2, Save, Trash2, Maximize2, MapPin } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client.tsx";
+import { supabase } from "@/integrations/supabase/client.ts";
 import { toast } from "sonner";
-import type { LandIntent } from "@/components/IntentSelector.tsx";
+import type { LandIntent } from "@/components/IntentSelector.ts";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

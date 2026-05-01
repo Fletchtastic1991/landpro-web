@@ -1,6 +1,6 @@
-import { Card, CardContent } from "@/components/ui/card.tsx";
+import { Card, CardContent } from "@/components/ui/card.ts";
 import { Building2, TreeDeciduous, Wheat, Search } from "lucide-react";
-import { cn } from "@/lib/utils.tsx";
+import { cn } from "@/lib/utils.ts";
 
 export type LandIntent = "build" | "clear" | "farm" | "evaluate";
 

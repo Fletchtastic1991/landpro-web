@@ -15,11 +15,11 @@
  */
 
 import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
-import { Button } from "@/components/ui/button.tsx";
-import { Badge } from "@/components/ui/badge.tsx";
-import { LandSelections } from "@/components/LandSelectors.tsx";
-import { cn } from "@/lib/utils.tsx";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.ts";
+import { Button } from "@/components/ui/button.ts";
+import { Badge } from "@/components/ui/badge.ts";
+import { LandSelections } from "@/components/LandSelectors.ts";
+import { cn } from "@/lib/utils.ts";
 import {
   Calendar, Ruler, Leaf, Mountain, MapPin,
   Lock, Download, CheckCircle2, DollarSign,

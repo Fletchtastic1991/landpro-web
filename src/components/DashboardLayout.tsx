@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { Map, Home } from "lucide-react";
-import { Button } from "@/components/ui/button.tsx";
+import { Button } from "@/components/ui/button.ts";
 
 // MVP Demo Mode: Simplified navigation - only show map explorer
 const navItems = [
