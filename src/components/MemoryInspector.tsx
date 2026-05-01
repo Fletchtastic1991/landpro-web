@@ -18,7 +18,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { ScrollArea } from '@/components/ui/scroll-area.tsx';
 import { Separator } from '@/components/ui/separator.tsx';
 import { useParcelMemory } from '@/hooks/useParcelMemory.tsx';
-import { useSitePro } from '@/hooks/useSitePro.ts';
+import { useSitePro } from '@/hooks/useSitePro.tsx';
 import type { MemoryRecord } from '@/lib/memory/types.ts';
 import type { SiteProResult } from '@/lib/sitepro/evaluator.ts';
 
