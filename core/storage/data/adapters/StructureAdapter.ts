@@ -1,4 +1,4 @@
-import { StructureStats } from "../types/StructureTypes";
+import { StructureStats } from "../types/StructureTypes.js";
 
 export interface StructureAdapter {
   getStructureStats(

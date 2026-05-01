@@ -43,5 +43,5 @@
  * const { conflicts } = await memoryCore.listConflicts('xxx');
  */
 
-export { memoryCore } from './memoryCore';
-export * from './types';
+export { memoryCore } from './memoryCore.ts';
+export * from './types.ts';

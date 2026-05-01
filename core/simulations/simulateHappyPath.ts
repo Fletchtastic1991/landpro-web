@@ -1,6 +1,6 @@
-import { dispatchEvent } from "../dispatcher/EventDispatcher";
-import { createGeometryCommand } from "../commands/CreateGeometryCommand";
-import { generateParcelReport } from "../reports/ParcelReport";
+import { dispatchEvent } from "../dispatcher/EventDispatcher.js";
+import { createGeometryCommand } from "../commands/CreateGeometryCommand.js";
+import { generateParcelReport } from "../reports/ParcelReport.js";
 
 // ---- Simulated runtime flags ----
 const featureFlags = {
@@ -26,7 +26,7 @@ const commandResult = createGeometryCommand({
 });
 
 if (commandResult.status === "ALLOWED" && commandResult.events) {
-  commandResult.events.forEach(event => dispatchEvent(event));
+  commandResult.events.forEach((event: any) => dispatchEvent(event));
 }
 
 // ---- 2. Generate full parcel report ----

@@ -1,5 +1,5 @@
-import { StructureAdapter } from "../adapters/StructureAdapter";
-import { StructureStats } from "../types/StructureTypes";
+import { StructureAdapter } from "../adapters/StructureAdapter.js";
+import { StructureStats } from "../types/StructureTypes.js";
 
 export const MockStructureAdapter: StructureAdapter = {
   getStructureStats(geometryId: string): StructureStats {

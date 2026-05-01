@@ -1,8 +1,8 @@
 import React from "react";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group.tsx";
+import { Label } from "@/components/ui/label.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { cn } from "@/lib/utils.tsx";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -132,7 +132,7 @@ const LandSelectors: React.FC<LandSelectorsProps> = ({
               <p className="text-xs text-muted-foreground mt-0.5">Leave at fence type default or override here</p>
             </div>
             <ToggleGroup type="single" value={String(selections.fenceSpacingFt)}
-              onValueChange={(v) => v && onSelectionChange("fenceSpacingFt", parseInt(v))}
+              onValueChange={(v: string | null) => v && onSelectionChange("fenceSpacingFt", parseInt(v))}
               className="grid grid-cols-4 gap-2 w-full">
               {[6, 8, 10, 12].map(ft => (
                 <ToggleGroupItem key={ft} value={String(ft)} className={itemStyle}>{ft} ft</ToggleGroupItem>
@@ -168,7 +168,7 @@ const LandSelectors: React.FC<LandSelectorsProps> = ({
               <p className="text-xs text-muted-foreground mt-0.5">Width per gate — subtracted from total fence length</p>
             </div>
             <ToggleGroup type="single" value={String(selections.gateWidthFt)}
-              onValueChange={(v) => v && onSelectionChange("gateWidthFt", parseInt(v))}
+              onValueChange={(v: string | null) => v && onSelectionChange("gateWidthFt", parseInt(v))}
               className="grid grid-cols-2 gap-2 w-full">
               <ToggleGroupItem value="4"  className={itemStyle}>4 ft<br/><span className="text-[10px] font-normal">Walk gate</span></ToggleGroupItem>
               <ToggleGroupItem value="10" className={itemStyle}>10 ft<br/><span className="text-[10px] font-normal">Equipment</span></ToggleGroupItem>
@@ -204,7 +204,7 @@ function TR({ label, sublabel, opts, value, onChange }: {
         <Label className="text-base font-semibold">{label}</Label>
         <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
       </div>
-      <ToggleGroup type="single" value={value} onValueChange={(v) => v && onChange(v)}
+      <ToggleGroup type="single" value={value} onValueChange={(v: string | null) => v && onChange(v)}
         className="grid gap-2 w-full" style={{ gridTemplateColumns: `repeat(${opts.length}, 1fr)` }}>
         {opts.map(o => <ToggleGroupItem key={o.v} value={o.v} className={itemStyle}>{o.l}</ToggleGroupItem>)}
       </ToggleGroup>

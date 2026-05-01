@@ -11,16 +11,16 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Bug, Play, AlertCircle, CheckCircle2, HelpCircle, Database, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { useParcelMemory } from '@/hooks/useParcelMemory';
-import { useSitePro } from '@/hooks/useSitePro';
-import type { MemoryRecord } from '@/lib/memory';
-import type { SiteProResult } from '@/lib/sitepro';
+import { Button } from '@/components/ui/button.tsx';
+import { Badge } from '@/components/ui/badge.tsx';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible.tsx';
+import { ScrollArea } from '@/components/ui/scroll-area.tsx';
+import { Separator } from '@/components/ui/separator.tsx';
+import { useParcelMemory } from '@/hooks/useParcelMemory.tsx';
+import { useSitePro } from '@/hooks/useSitePro.tsx';
+import type { MemoryRecord } from '@/lib/memory/types.ts';
+import type { SiteProResult } from '@/lib/sitepro/evaluator.ts';
 
 interface MemoryInspectorProps {
   parcelId: string | undefined;
@@ -136,7 +136,7 @@ export function MemoryInspector({ parcelId }: MemoryInspectorProps) {
                     ) : records.length === 0 ? (
                       <p className="text-xs text-muted-foreground font-mono italic">No records</p>
                     ) : (
-                      records.map((record) => (
+                      records.map((record: MemoryRecord) => (
                         <RecordItem key={record.record_id} record={record} />
                       ))
                     )}
@@ -159,7 +159,7 @@ export function MemoryInspector({ parcelId }: MemoryInspectorProps) {
                     ) : unknowns.length === 0 ? (
                       <p className="text-xs text-muted-foreground font-mono italic">No unknowns</p>
                     ) : (
-                      unknowns.map((unknown) => (
+                      unknowns.map((unknown: any) => (
                         <div
                           key={unknown.record_id}
                           className="text-xs font-mono p-1.5 rounded bg-yellow-500/10 border border-yellow-500/20"
@@ -184,7 +184,7 @@ export function MemoryInspector({ parcelId }: MemoryInspectorProps) {
                     </h4>
                     <ScrollArea className="h-20 border rounded-md bg-muted/30">
                       <div className="p-2 space-y-1">
-                        {conflicts.map((conflict, idx) => (
+                        {conflicts.map((conflict: any, idx: number) => (
                           <div
                             key={idx}
                             className="text-xs font-mono p-1.5 rounded bg-red-500/10 border border-red-500/20"
@@ -337,7 +337,7 @@ function SiteProResultDisplay({ result }: { result: SiteProResult }) {
             Known Facts ({result.known_facts.length})
           </summary>
           <div className="mt-1 space-y-1">
-            {result.known_facts.map((fact, idx) => (
+            {result.known_facts.map((fact: any, idx: number) => (
               <div key={idx} className="p-1 rounded bg-muted/50 text-[10px]">
                 <span className="text-primary">{fact.category}:</span> {JSON.stringify(fact.value)}
               </div>
@@ -353,7 +353,7 @@ function SiteProResultDisplay({ result }: { result: SiteProResult }) {
             Unknowns ({result.unknowns.length})
           </summary>
           <div className="mt-1 space-y-1">
-            {result.unknowns.map((unknown, idx) => (
+            {result.unknowns.map((unknown: any, idx: number) => (
               <div key={idx} className="p-1 rounded bg-yellow-500/10 text-[10px]">
                 <span className="text-yellow-600">{unknown.category}:</span> {unknown.impact}
               </div>

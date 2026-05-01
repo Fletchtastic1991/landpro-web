@@ -1,4 +1,4 @@
-import { LandCoverStats } from "../types/LandCoverTypes";
+import { LandCoverStats } from "../types/LandCoverTypes.js";
 
 export interface LandCoverAdapter {
   getLandCoverStats(

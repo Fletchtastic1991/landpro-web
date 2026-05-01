@@ -1,4 +1,4 @@
-import { EventType, GeometryEvent } from "../events/EventTypes";
+import { EventType, GeometryEvent } from "../events/EventTypes.ts";
 import { CommandResult } from "./CommandResult";
 import type { GeoJSON } from "geojson";
 

@@ -15,19 +15,19 @@
  */
 
 import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { LandSelections } from "@/components/LandSelectors";
-import { cn } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { LandSelections } from "@/components/LandSelectors.tsx";
+import { cn } from "@/lib/utils.tsx";
 import {
   Calendar, Ruler, Leaf, Mountain, MapPin,
   Lock, Download, CheckCircle2, DollarSign,
   FileText, Droplets, Building2, Trash2, AlertTriangle
 } from "lucide-react";
 import { format } from "date-fns";
-import { runLandProEngine } from "@/engines/LandProEngine";
-import { buildReportView, ReportView } from "@/engines/buildReportView";
+import { runLandProEngine } from "@/engines/LandProEngine.js";
+import { buildReportView, ReportView } from "@/engines/buildReportView.js";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
-import { LandCoverAdapter } from "../adapters/LandCoverAdapter";
-import { LandCoverStats } from "../types/LandCoverTypes";
+import { LandCoverAdapter } from "../adapters/LandCoverAdapter.js";
+import { LandCoverStats } from "../types/LandCoverTypes.js";
 
 export const MockLandCoverAdapter: LandCoverAdapter = {
   getLandCoverStats(geometryId: string): LandCoverStats {

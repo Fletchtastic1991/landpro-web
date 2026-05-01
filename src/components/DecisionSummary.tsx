@@ -15,8 +15,8 @@
  * Per LandPro OS Core Invariants: No guessing, source transparency, user confidence > system confidence.
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
 import { 
   Target, 
   TrendingUp, 
@@ -30,8 +30,8 @@ import {
   AlertCircle,
   Info
 } from "lucide-react";
-import { useReadiness } from "@/hooks/useReadiness";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useReadiness } from "@/hooks/useReadiness.tsx";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.tsx";
 
 interface LandAnalysis {
   vegetation: {
@@ -477,7 +477,7 @@ export default function DecisionSummary({ analysis, acreage, parcelId }: Decisio
                     Blockers
                   </h4>
                   <ul className="space-y-1">
-                    {blockers.map((b) => (
+                    {blockers.map((b: any) => (
                       <li key={b.record_id} className="text-xs text-red-600 flex items-start gap-2">
                         <span className="flex-shrink-0">•</span>
                         {b.label}
@@ -493,7 +493,7 @@ export default function DecisionSummary({ analysis, acreage, parcelId }: Decisio
                     Missing for Build-Ready
                   </h4>
                   <ul className="space-y-1">
-                    {missingRequirements.slice(0, 3).map((m) => (
+                    {missingRequirements.slice(0, 3).map((m: any) => (
                       <li key={m.milestone} className="text-xs text-amber-600 flex items-start gap-2">
                         <span className="flex-shrink-0">•</span>
                         {m.label}

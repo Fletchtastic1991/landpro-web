@@ -1,5 +1,5 @@
-import { JournalEntry } from "./JournalEntry";
-import { LandProEvent, EventType } from "../events/EventTypes";
+import { JournalEntry } from "./JournalEntry.js";
+import { LandProEvent, EventType } from "../events/EventTypes.js";
 
 /**
  * In-memory journal store (replaceable later with persistence)

@@ -1,5 +1,5 @@
-import { getJournal } from "../journal/JournalWriter";
-import { GeometryEvent, EventType } from "../events/EventTypes";
+import { getJournal } from "../journal/JournalWriter.js";
+import { GeometryEvent, EventType } from "../events/EventTypes.js";
 
 export interface BaseParcelReport {
   parcelId: string;

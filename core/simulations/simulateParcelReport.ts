@@ -1,4 +1,4 @@
-import { generateParcelReport } from "../reports/ParcelReport";
+import { generateParcelReport } from "../reports/ParcelReport.js";
 
 const report = generateParcelReport("parcel-123");
 

@@ -1,4 +1,4 @@
-import { BaseParcelReport } from "./BaseParcelReport";
+import { BaseParcelReport } from "./BaseParcelReport.js";
 
 export interface LandClearingSection {
   status: "AVAILABLE" | "BLOCKED";

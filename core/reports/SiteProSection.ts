@@ -1,7 +1,7 @@
-import { BaseParcelReport } from "./BaseParcelReport";
-import { MockElevationAdapter } from "../storage/data/mocks/MockElevationAdapter";
-import { MockLandCoverAdapter } from "../storage/data/mocks/MockLandCoverAdapter";
-import { MockStructureAdapter } from "../storage/data/mocks/MockStructureAdapter";
+import { BaseParcelReport } from "./BaseParcelReport.js";
+import { MockElevationAdapter } from "../storage/data/mocks/MockElevationAdapter.js";
+import { MockLandCoverAdapter } from "../storage/data/mocks/MockLandCoverAdapter.js";
+import { MockStructureAdapter } from "../storage/data/mocks/MockStructureAdapter.js";
 
 export interface SiteProSectionReport {
   status: "AVAILABLE" | "BLOCKED";
@@ -68,7 +68,7 @@ export function generateSiteProSection(
     landCover: {
       dominantType: landCover.dominantType,
       coveragePercent: landCover.categories.find(
-        c => c.type === landCover.dominantType
+        (c: { type: string; percent: number }) => c.type === landCover.dominantType
       )?.percent ?? 0
     },
 

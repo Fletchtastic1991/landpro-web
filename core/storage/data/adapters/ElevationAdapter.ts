@@ -1,4 +1,4 @@
-import { ElevationStats } from "../types/ElevationTypes";
+import { ElevationStats } from "../types/ElevationTypes.js";
 
 export interface MockElevationAdapter {
   getSlopeStats(geometryId: string): ElevationStats;

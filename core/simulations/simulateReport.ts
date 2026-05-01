@@ -1,4 +1,4 @@
-import { generateLandClearingReport } from "../reports/LandClearingReport";
+import { generateLandClearingReport } from "../reports/LandClearingReport.js";
 
 const report = generateLandClearingReport("parcel-123");
 

@@ -1,6 +1,6 @@
-import { generateBaseParcelReport } from "./BaseParcelReport";
-import { generateLandClearingSection } from "./LandClearingSection";
-import { generateSiteProSection } from "./SiteProSection";
+import { generateBaseParcelReport } from "./BaseParcelReport.js";
+import { generateLandClearingSection } from "./LandClearingSection.js";
+import { generateSiteProSection } from "./SiteProSection.js";
 
 export interface ParcelReport {
   parcelId: string;

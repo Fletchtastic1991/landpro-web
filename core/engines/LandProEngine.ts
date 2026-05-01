@@ -1,7 +1,7 @@
-import { generateBaseParcelReport } from "../reports/BaseParcelReport";
-import { runSiteProEngine } from "./SiteProEngine";
-import { runClearingProEngine } from "./ClearingProEngine";
-import { runLenses, buildLensProject, buildFenceInputs } from "@/lib/lenses/registry";
+import { generateBaseParcelReport } from "../reports/BaseParcelReport.js";
+import { runSiteProEngine } from "./SiteProEngine.js";
+import { runClearingProEngine } from "./ClearingProEngine.js";
+import { runLenses, buildLensProject, buildFenceInputs } from "@/lib/lenses/registry.js";
 
 export function runLandProEngine(propertyData: any, selections: any) {
   const parcelId = "parcel-123";

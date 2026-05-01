@@ -1,5 +1,5 @@
-import { generateBaseParcelReport } from "../reports/BaseParcelReport";
-import { generateLandClearingSection } from "../reports/LandClearingSection";
+import { generateBaseParcelReport } from "../reports/BaseParcelReport.js";
+import { generateLandClearingSection } from "../reports/LandClearingSection.js";
 
 const base = generateBaseParcelReport("parcel-123");
 const section = generateLandClearingSection(base);

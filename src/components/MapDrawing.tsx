@@ -6,13 +6,13 @@ import * as turf from "@turf/turf";
 import "mapbox-gl/dist/mapbox-gl.css";
 import "@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css";
 import "@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button } from "@/components/ui/button.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group.tsx";
 import { Loader2, Save, Trash2, Maximize2, MapPin } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client.tsx";
 import { toast } from "sonner";
-import type { LandIntent } from "@/components/IntentSelector";
+import type { LandIntent } from "@/components/IntentSelector.tsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -295,7 +295,7 @@ export default function MapDrawing({
         {/* Style switcher — positioned to not overlap geocoder */}
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-background/95 backdrop-blur-sm rounded-lg shadow-lg border p-1"
              style={{ marginLeft: "100px" }}> {/* offset right of geocoder */}
-          <ToggleGroup type="single" value={mapStyle} onValueChange={(v) => v && handleStyleChange(v as MapStyleKey)} className="gap-1">
+          <ToggleGroup type="single" value={mapStyle} onValueChange={(v: string | null) => v && handleStyleChange(v as MapStyleKey)} className="gap-1">
             {Object.entries(MAP_STYLES).map(([key, { label }]) => (
               <ToggleGroupItem key={key} value={key} size="sm"
                 className="text-xs px-3 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">

@@ -1,4 +1,4 @@
-import { SiteProResult } from "./SiteProEngine";
+import { SiteProResult } from "./SiteProEngine.js";
 
 export interface ClearingResult {
   status: "AVAILABLE" | "BLOCKED";

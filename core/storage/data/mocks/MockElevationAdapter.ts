@@ -1,4 +1,4 @@
-import { ElevationAdapter } from "../adapters/ElevationAdapter";
+import { ElevationAdapter } from "../adapters/ElevationAdapter.js";
 
 export const MockElevationAdapter: ElevationAdapter = {
   getElevationStats(geometryId: string) {

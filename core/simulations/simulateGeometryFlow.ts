@@ -1,6 +1,6 @@
-import { createGeometryCommand } from "../commands/CreateGeometryCommand";
-import { dispatchEvent } from "../dispatcher/EventDispatcher";
-import { getJournal } from "../journal/JournalWriter";
+import { createGeometryCommand } from "../commands/CreateGeometryCommand.js";
+import { dispatchEvent } from "../dispatcher/EventDispatcher.js";
+import { getJournal } from "../journal/JournalWriter.js";
 
 // --- Simulated runtime state ---
 const featureFlags = {
@@ -25,7 +25,7 @@ console.log("COMMAND RESULT:", commandResult);
 
 // 2. If allowed, dispatch resulting events
 if (commandResult.status === "ALLOWED" && commandResult.events) {
-  commandResult.events.forEach(event => {
+  commandResult.events.forEach((event: any) => {
     dispatchEvent(event);
   });
 }

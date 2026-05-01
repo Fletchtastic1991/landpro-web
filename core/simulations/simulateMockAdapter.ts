@@ -1,6 +1,6 @@
-import { MockElevationAdapter } from "../storage/data/mocks/MockElevationAdapter";
-import { MockLandCoverAdapter } from "../storage/data/mocks/MockLandCoverAdapter";
-import { MockStructureAdapter } from "../storage/data/mocks/MockStructureAdapter";
+import { MockElevationAdapter } from "../storage/data/mocks/MockElevationAdapter.js";
+import { MockLandCoverAdapter } from "../storage/data/mocks/MockLandCoverAdapter.js";
+import { MockStructureAdapter } from "../storage/data/mocks/MockStructureAdapter.js";
 
 console.log("ELEVATION:");
 console.log(MockElevationAdapter.getSlopeStats("geom-123"));
