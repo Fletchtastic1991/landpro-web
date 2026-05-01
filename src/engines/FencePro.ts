@@ -9,7 +9,7 @@
  * Layer 4: Labor     — posts/day × terrain factor → days → cost
  */
 
-import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig";
+import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig.ts";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 

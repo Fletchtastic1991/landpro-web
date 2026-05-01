@@ -8,7 +8,7 @@
  * - Never recommends actions or implies approval
  */
 
-import type { MemoryRecord } from '@/lib/memory/types';
+import type { MemoryRecord } from '@/lib/memory/types.ts';
 import type {
   SiteProResult,
   SiteProOutcome,
@@ -16,7 +16,7 @@ import type {
   SiteProKnownFact,
   SiteProUnknown,
   AreaEvaluation,
-} from './types';
+} from './types.ts';
 
 /**
  * Generate unique evaluation ID
