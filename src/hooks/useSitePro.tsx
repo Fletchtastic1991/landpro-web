@@ -6,9 +6,9 @@
  */
 
 import { useMemo } from 'react';
-import { useParcelMemory } from './useParcelMemory';
-import { evaluateParcel } from '@/lib/sitepro';
-import type { SiteProResult } from '@/lib/sitepro';
+import { useParcelMemory } from './useParcelMemory.tsx';
+import { evaluateParcel } from '@/lib/sitepro/evaluator.ts';
+import type { SiteProResult } from '@/lib/sitepro/types.ts';
 
 /**
  * Hook for running SitePro evaluation on a parcel
