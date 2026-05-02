@@ -1,5 +1,5 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.ts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
 import { LandSelections } from "@/components/LandSelectors.ts";
 import { cn } from "@/lib/utils.ts";
 import { Leaf, Mountain, MapPin } from "lucide-react";
