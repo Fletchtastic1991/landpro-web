@@ -15,8 +15,8 @@
  * Per LandPro OS Core Invariants: No guessing, source transparency, user confidence > system confidence.
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.tsx";
-import { Badge } from "@/components/ui/badge.ts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { 
   Target, 
   TrendingUp, 
@@ -30,8 +30,8 @@ import {
   AlertCircle,
   Info
 } from "lucide-react";
-import { useReadiness } from "@/hooks/useReadiness.ts";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip.ts";
+import { useReadiness } from "@/hooks/useReadiness";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface LandAnalysis {
   vegetation: {

@@ -1,12 +1,12 @@
 /**
  * LandPro — ClearingPro Engine
- * src/engines/ClearingPro.ts
+ * src/engines/ClearingPro
  *
  * CONFIDENCE RULE: Medium is the ceiling. High is never awarded.
  * A field estimate from toggles cannot be High confidence by definition.
  */
 
-import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig.ts";
+import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 

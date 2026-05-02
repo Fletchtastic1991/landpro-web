@@ -1,13 +1,13 @@
 /**
  * LandPro — buildReportView
- * src/engines/buildReportView.ts
+ * src/engines/buildReportView
  *
  * UI ADAPTER — shapes raw engine output for display.
  * No logic here — only formatting, null safety, and label mapping.
  */
 
-import { LandProEngineOutput } from "./LandProEngine.ts";
-import { LandSelections } from "@/components/LandSelectors.ts";
+import { LandProEngineOutput } from "./LandProEngine";
+import { LandSelections } from "@/components/LandSelectors";
 
 // ─── Display types ────────────────────────────────────────────────────────────
 

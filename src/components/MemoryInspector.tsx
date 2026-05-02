@@ -11,14 +11,14 @@
 
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, Bug, Play, AlertCircle, CheckCircle2, HelpCircle, Database, Eye } from 'lucide-react';
-import { Button } from '@/components/ui/button.tsx';
-import { Badge } from '@/components/ui/badge.tsx';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible.tsx';
-import { ScrollArea } from '@/components/ui/scroll-area.tsx';
-import { Separator } from '@/components/ui/separator.tsx';
-import { useParcelMemory } from '@/hooks/useParcelMemory.tsx';
-import { useSitePro } from '@/hooks/useSitePro.tsx';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { useParcelMemory } from '@/hooks/useParcelMemory';
+import { useSitePro } from '@/hooks/useSitePro';
 import type { MemoryRecord } from '@/lib/memory/types.ts';
 import type { SiteProResult } from '@/lib/sitepro/evaluator.ts';
 

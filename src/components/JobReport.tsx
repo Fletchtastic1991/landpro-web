@@ -1,6 +1,6 @@
 /**
- * LandPro — JobReport.tsx
- * src/components/JobReport.tsx
+ * LandPro — JobReport
+ * src/components/JobReport
  *
  * DISPLAY ONLY — zero calculations, zero business logic.
  * Reads exclusively from ReportView (built by buildReportView).

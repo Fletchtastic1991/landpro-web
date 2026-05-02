@@ -6,7 +6,7 @@
  */
 
 import { useMemo } from 'react';
-import { useParcelMemory } from './useParcelMemory.tsx';
+import { useParcelMemory } from './useParcelMemory';
 import { evaluateParcel } from '@/lib/sitepro/evaluator.ts';
 import type { SiteProResult } from '@/lib/sitepro/types.ts';
 

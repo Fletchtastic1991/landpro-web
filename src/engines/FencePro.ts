@@ -1,6 +1,6 @@
 /**
  * LandPro — FencePro Engine
- * src/engines/FencePro.ts
+ * src/engines/FencePro
  *
  * PURE LOGIC — no UI, no formatting, no React
  * Layer 1: Geometry  — real perimeter, gate deduction, corner detection
@@ -9,7 +9,7 @@
  * Layer 4: Labor     — posts/day × terrain factor → days → cost
  */
 
-import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig.ts";
+import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 

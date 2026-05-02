@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
-// ─── Types (mirrors ProjectDetail.tsx) ────────────────────────────────────────
+// ─── Types (mirrors ProjectDetail) ────────────────────────────────────────
 
 interface LandAnalysis {
   vegetation: {
