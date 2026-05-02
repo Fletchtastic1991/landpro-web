@@ -4,32 +4,22 @@
  *
  * DISPLAY ONLY — zero calculations, zero business logic.
  * Reads exclusively from ReportView (built by buildReportView).
- *
- * Schema matches ClearingProResult v2:
- *   - confidence.breakdown (NOT confidence.reasons)
- *   - crew.assumption (visible anchor)
- *   - cost.perAcreRange + cost.perAcreNote
- *   - riskFactors with .consequence
- *   - nonLinearFlags
- *   - NO materials section (mulch removed)
  */
 
 import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card.ts";
-import { Button } from "@/components/ui/button.ts";
-import { Badge } from "@/components/ui/badge.ts";
-import { LandSelections } from "@/components/LandSelectors.ts";
-import { cn } from "@/lib/utils.ts";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { LandSelections } from "@/components/LandSelectors";
+import { cn } from "@/lib/utils";
 import {
   Calendar, Ruler, Leaf, Mountain, MapPin,
   Lock, Download, CheckCircle2, DollarSign,
-  FileText, Droplets, Building2, Trash2, AlertTriangle
+  FileText, Droplets, Building2, Trash2, AlertTriangle, Zap
 } from "lucide-react";
 import { format } from "date-fns";
-import { runLandProEngine } from "@/engines/LandProEngine.js";
-import { buildReportView, ReportView } from "@/engines/buildReportView.js";
-
-// ─── Props ────────────────────────────────────────────────────────────────────
+import { runLandProEngine } from "@/engines/LandProEngine";
+import { buildReportView, ReportView } from "@/engines/buildReportView";
 
 interface JobReportProps {
   propertyData: {
@@ -68,9 +58,9 @@ const D = {
 // ─── Label maps ───────────────────────────────────────────────────────────────
 
 const VEG_L = { light: "Light Vegetation", medium: "Medium Vegetation", heavy: "Heavy Vegetation" };
-const TER_L = { flat: "Flat Terrain",       slight_slope: "Slight Slope",   steep: "Steep Terrain"      };
-const ACC_L = { easy: "Easy Access",        moderate: "Moderate Access",    difficult: "Difficult Access" };
-const WAT_L = { none: "None",               pond_or_creek: "Pond or creek", wetland: "Wetland area"      };
+const TER_L = { flat: "Flat Terrain",       slight_slope: "Slight Slope",   steep: "Steep Terrain"       };
+const ACC_L = { easy: "Easy Access",        moderate: "Moderate Access",    difficult: "Difficult Access"  };
+const WAT_L = { none: "None",               pond_or_creek: "Pond or creek", wetland: "Wetland area"       };
 const STR_L = { none: "None",               fencing: "Existing fencing",    buildings_utilities: "Buildings / Utilities" };
 const DEB_L = { none: "None",               light: "Light debris",          heavy: "Heavy debris / trash" };
 
@@ -134,12 +124,12 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
           {/* 6-field grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { icon: Ruler,     label: "Property Size", value: hasAcre ? `${acres} Acres` : "Not defined", color: "bg-blue-500/10 text-blue-400"   },
-              { icon: Leaf,      label: "Vegetation",    value: VEG_L[selections.vegetation],                color: "bg-green-500/10 text-green-400"  },
-              { icon: Mountain,  label: "Terrain",       value: TER_L[selections.terrain],                   color: "bg-amber-500/10 text-amber-400"  },
-              { icon: MapPin,    label: "Accessibility", value: ACC_L[selections.accessibility],             color: "bg-purple-500/10 text-purple-400" },
-              { icon: Droplets,  label: "Water",         value: WAT_L[selections.water],                     color: "bg-cyan-500/10 text-cyan-400"    },
-              { icon: Building2, label: "Structures",    value: STR_L[selections.structures],                color: "bg-orange-500/10 text-orange-400" },
+              { icon: Ruler,     label: "Property Size", value: hasAcre ? `${acres} Acres` : "Not defined", color: "bg-blue-500/10 text-blue-400"    },
+              { icon: Leaf,      label: "Vegetation",    value: VEG_L[selections.vegetation],                color: "bg-green-500/10 text-green-400"   },
+              { icon: Mountain,  label: "Terrain",       value: TER_L[selections.terrain],                   color: "bg-amber-500/10 text-amber-400"   },
+              { icon: MapPin,    label: "Accessibility", value: ACC_L[selections.accessibility],             color: "bg-purple-500/10 text-purple-400"  },
+              { icon: Droplets,  label: "Water",         value: WAT_L[selections.water],                     color: "bg-cyan-500/10 text-cyan-400"     },
+              { icon: Building2, label: "Structures",    value: STR_L[selections.structures],                color: "bg-orange-500/10 text-orange-400"  },
             ].map(({ icon: Icon, label, value, color }) => (
               <div key={label} className="flex items-center justify-between p-3 rounded-lg border bg-background/50">
                 <div className="flex items-center gap-2">
@@ -170,12 +160,14 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             </div>
           )}
 
-          {/* Crew assumption — visible anchor */}
+          {/* Crew assumption + justification */}
           {clearing && (
-            <div className="flex items-center gap-3 p-3 rounded-lg border bg-muted/20">
-              <span className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">Crew assumption:</span> {clearing.crew.assumption}
-              </span>
+            <div className="p-3 rounded-lg border bg-muted/20 space-y-1">
+              <p className="text-xs">
+                <span className="font-semibold text-foreground">Crew: </span>
+                <span className="text-muted-foreground">{clearing.crew.assumption}</span>
+              </p>
+              <p className="text-xs text-muted-foreground">{clearing.crew.justification}</p>
             </div>
           )}
 
@@ -196,17 +188,23 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             </div>
           )}
 
-          {/* Per-acre sanity anchor */}
-          {clearing && (
-            <p className="text-xs text-muted-foreground italic">
-              Cost per acre equivalent: <span className="text-foreground font-medium">{clearing.cost.perAcreRange}/acre</span> — {clearing.cost.perAcreNote}
-            </p>
-          )}
-
           {!fence?.isRealBoundary && hasAcre && (
             <p className="text-xs text-muted-foreground/70 italic">
               ⁽*⁾ Perimeter estimated from square-lot assumption — draw your boundary for real numbers.
             </p>
+          )}
+
+          {/* Fix #1 — Cost driver callout, shown before total */}
+          {clearing && clearing.costDrivers.length > 0 && (
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2">
+              <p className="text-xs font-semibold text-primary uppercase tracking-wider">Why this estimate is what it is</p>
+              {clearing.costDrivers.map((d, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <span className="text-primary font-semibold shrink-0">→</span>
+                  <span><span className="font-semibold text-foreground">{d.label}:</span> <span className="text-muted-foreground">{d.impact}</span></span>
+                </div>
+              ))}
+            </div>
           )}
 
           {/* Cost badge + confidence */}
@@ -217,26 +215,45 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                 <div>
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Estimated Total Cost</p>
                   <p className="text-2xl font-bold text-primary">{clearing.cost.totalRange}</p>
-                  <p className="text-xs text-muted-foreground">Hours × rates — not $/acre guessing</p>
+                  <p className="text-xs text-muted-foreground">{clearing.cost.perAcreRange}/acre — {clearing.cost.perAcreNote}</p>
                 </div>
               </div>
               <Badge className={cn("border text-xs", confBadge)}>{clearing.confidence.level} Confidence</Badge>
             </div>
           )}
 
-          {/* Non-linear flags */}
+          {/* Fix #4 — Reality anchor */}
+          {clearing && clearing.realityAnchor.baselineRange && (
+            <div className="p-3 rounded-lg border bg-muted/10 space-y-1">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reality Anchor</p>
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">Baseline: </span>
+                {clearing.realityAnchor.baselineRange}/acre — {clearing.realityAnchor.baselineLabel}
+              </p>
+              {clearing.realityAnchor.exceedsBy && (
+                <p className="text-xs text-amber-400">
+                  {clearing.realityAnchor.exceedsBy} due to: {clearing.realityAnchor.exceedsReasons.join(", ")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Fix #3 — Non-linear diagnosis flags */}
           {clearing && clearing.nonLinearFlags.length > 0 && (
             <div className="space-y-2">
+              <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center gap-1">
+                <Zap className="h-3 w-3" /> Condition Interaction Diagnosis
+              </p>
               {clearing.nonLinearFlags.map((f, i) => (
                 <div key={i} className="flex items-start gap-2 p-3 rounded-lg border bg-amber-500/5 border-amber-500/20">
-                  <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-400">{f}</p>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Top 3 risk factors preview */}
+          {/* Top risk factors preview */}
           {clearing && clearing.riskFactors.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Key Risk Factors</p>
@@ -270,10 +287,10 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 {[
                   fence?.isRealBoundary ? "Real perimeter + corners" : "Perimeter estimate",
-                  "Gate width deducted",
-                  "Hours × rates model",
-                  "Crew assumption visible",
-                  "Risk factors sorted by severity",
+                  "Cost drivers explained",
+                  "Crew size justified",
+                  "Reality anchor included",
+                  "Diagnosis-level warnings",
                   "Locked PDF report",
                 ].map(item => (
                   <div key={item} className="flex items-center gap-1">
@@ -381,38 +398,34 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                   <Row label={`Gate deduction (${selections.gateCount ?? 0} × ${selections.gateWidthFt ?? 12} ft)`} value={`− ${fence.gateDeductionFt}`} D={D} dim />
                 )}
                 <Row label="Effective fence length" value={fence.effectiveFenceFt} D={D} />
-
                 <div style={{ marginTop:"12px", borderTop:`1px solid ${D.border}`, paddingTop:"10px" }}>
                   <Sect label={`Posts at ${fence.spacingFt} ft spacing`} D={D} />
-                  <Row label="Line posts"                                         value={`${fence.posts.line} posts`}   D={D} />
-                  <Row label={`Corner posts (${fence.cornerCount} detected)`}     value={`+ ${fence.posts.corner}`}     D={D} dim />
-                  <Row label={`Gate posts (${selections.gateCount ?? 0} × 2)`}   value={`+ ${fence.posts.gate}`}       D={D} dim />
+                  <Row label="Line posts"                                        value={`${fence.posts.line} posts`}  D={D} />
+                  <Row label={`Corner posts (${fence.cornerCount} detected)`}    value={`+ ${fence.posts.corner}`}    D={D} dim />
+                  <Row label={`Gate posts (${selections.gateCount ?? 0} × 2)`}  value={`+ ${fence.posts.gate}`}      D={D} dim />
                   <div style={{ borderTop:`1px solid ${D.borderAcc}`, marginTop:"8px", paddingTop:"8px", display:"flex", justifyContent:"space-between" }}>
                     <span style={{ fontSize:"14px", fontWeight:"700", color:D.text, fontFamily:"sans-serif" }}>Total Posts</span>
                     <span style={{ fontSize:"22px", fontWeight:"800", color:D.primary, fontFamily:"sans-serif" }}>{fence.posts.total}</span>
                   </div>
                 </div>
-
                 <div style={{ marginTop:"12px", borderTop:`1px solid ${D.border}`, paddingTop:"10px" }}>
                   <Sect label="Materials" D={D} />
                   <Row label={`Concrete (${fence.materials.concretePerPost} bags/post)`} value={fence.materials.concreteBags}    D={D} />
-                  {fence.materials.railLinearFt && <Row label={`Rails (${fence.materials.railsPerSpan}/span)`}   value={fence.materials.railLinearFt}  D={D} />}
-                  {fence.materials.wireLinearFt && <Row label={`Wire (${fence.materials.wireStrands} strands)`} value={fence.materials.wireLinearFt}  D={D} />}
+                  {fence.materials.railLinearFt && <Row label={`Rails (${fence.materials.railsPerSpan}/span)`}  value={fence.materials.railLinearFt} D={D} />}
+                  {fence.materials.wireLinearFt && <Row label={`Wire (${fence.materials.wireStrands} strands)`} value={fence.materials.wireLinearFt} D={D} />}
                   <Row label="Fence material" value={fence.materials.fenceMaterialFt} D={D} />
                 </div>
-
                 <div style={{ marginTop:"12px", borderTop:`1px solid ${D.border}`, paddingTop:"10px" }}>
                   <Sect label="Labor + Cost" D={D} />
                   <Row label={`Posts/day: ${fence.labor.basePostsPerDay} base × ${fence.labor.terrainFactor} terrain`} value={`${fence.labor.adjustedPostsPerDay} posts/day`} D={D} />
-                  <Row label="Days required"  value={fence.labor.daysRange}       D={D} />
-                  <Row label="Labor cost"     value={fence.labor.laborCostRange}  D={D} />
-                  <Row label="Material cost"  value={fence.labor.materialCost}    D={D} />
+                  <Row label="Days required"  value={fence.labor.daysRange}      D={D} />
+                  <Row label="Labor cost"     value={fence.labor.laborCostRange} D={D} />
+                  <Row label="Material cost"  value={fence.labor.materialCost}   D={D} />
                   <div style={{ borderTop:`1px solid ${D.borderAcc}`, marginTop:"8px", paddingTop:"8px", display:"flex", justifyContent:"space-between" }}>
                     <span style={{ fontSize:"13px", fontWeight:"700", color:D.text, fontFamily:"sans-serif" }}>FencePro Total (+{fence.labor.markupPct}% markup)</span>
                     <span style={{ fontSize:"20px", fontWeight:"800", color:D.primary, fontFamily:"sans-serif" }}>{fence.costRange}</span>
                   </div>
                 </div>
-
                 {fence.warnings.length > 0 && (
                   <div style={{ marginTop:"10px" }}>
                     {fence.warnings.map((w, i) => (
@@ -430,9 +443,14 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
               <RH label={`💵  Clearing Cost — ${clearing.productionRate} Production Rate`} D={D} />
               <div style={{ background:D.bgSect, border:`1px solid ${D.borderAcc}`, borderRadius:"6px", padding:"16px 18px", marginBottom:"20px" }}>
 
-                {/* Crew assumption — visible */}
-                <div style={{ background:D.bgCard, borderRadius:"5px", padding:"8px 12px", marginBottom:"12px", fontSize:"11px", color:D.muted, fontFamily:"sans-serif" }}>
-                  <span style={{ color:D.primary, fontWeight:"600" }}>Crew assumption: </span>{clearing.crew.assumption}
+                {/* Crew assumption + justification */}
+                <div style={{ background:D.bgCard, borderRadius:"5px", padding:"10px 12px", marginBottom:"14px" }}>
+                  <div style={{ fontSize:"11px", color:D.primary, fontFamily:"sans-serif", fontWeight:"600", marginBottom:"4px" }}>
+                    Crew: {clearing.crew.assumption}
+                  </div>
+                  <div style={{ fontSize:"10px", color:D.dim, fontFamily:"sans-serif", lineHeight:1.5 }}>
+                    {clearing.crew.justification}
+                  </div>
                 </div>
 
                 <Sect label="Hours Required" D={D} />
@@ -442,8 +460,8 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
 
                 <div style={{ marginTop:"12px", borderTop:`1px solid ${D.border}`, paddingTop:"10px" }}>
                   <Sect label="Labor Cost" D={D} />
-                  <Row label={`Machine: ${clearing.hours.adjusted} × $150/hr`}                                      value={clearing.cost.machineRange} D={D} />
-                  <Row label={`Crew: ${clearing.hours.adjusted} × ${clearing.crew.size} operators × $50/hr`}        value={clearing.cost.laborRange}   D={D} />
+                  <Row label={`Machine: ${clearing.hours.adjusted} × $150/hr`}                                value={clearing.cost.machineRange} D={D} />
+                  <Row label={`Crew: ${clearing.hours.adjusted} × ${clearing.crew.size} ops × $50/hr`}       value={clearing.cost.laborRange}   D={D} />
                 </div>
 
                 {clearing.cost.addons.length > 0 && (
@@ -453,6 +471,22 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                   </div>
                 )}
 
+                {/* Fix #1 — Cost drivers above total */}
+                {clearing.costDrivers.length > 0 && (
+                  <div style={{ marginTop:"14px", borderTop:`1px solid ${D.border}`, paddingTop:"10px" }}>
+                    <Sect label="Why This Estimate Is What It Is" D={D} />
+                    {clearing.costDrivers.map((d, i) => (
+                      <div key={i} style={{ display:"flex", gap:"8px", padding:"4px 0", borderBottom:`1px solid ${D.border}` }}>
+                        <span style={{ fontSize:"11px", color:D.primary, fontFamily:"sans-serif", fontWeight:"600", flexShrink:0 }}>→</span>
+                        <span style={{ fontSize:"11px", color:D.muted, fontFamily:"sans-serif" }}>
+                          <span style={{ color:D.text, fontWeight:"600" }}>{d.label}: </span>{d.impact}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Total + per-acre */}
                 <div style={{ borderTop:`2px solid ${D.primaryDk}`, marginTop:"14px", paddingTop:"14px" }}>
                   <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"6px" }}>
                     <span style={{ fontSize:"15px", fontWeight:"700", color:D.text, fontFamily:"sans-serif" }}>Clearing Total</span>
@@ -462,6 +496,24 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                     {clearing.cost.perAcreRange}/acre — {clearing.cost.perAcreNote}
                   </div>
                 </div>
+
+                {/* Fix #4 — Reality anchor */}
+                {clearing.realityAnchor.baselineRange && (
+                  <div style={{ marginTop:"12px", background:D.bgCard, borderRadius:"5px", padding:"10px 12px" }}>
+                    <div style={{ fontSize:"10px", color:D.dim, fontFamily:"sans-serif", textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:"6px" }}>
+                      Reality Anchor
+                    </div>
+                    <div style={{ fontSize:"11px", color:D.muted, fontFamily:"sans-serif", marginBottom:"4px" }}>
+                      <span style={{ color:D.text, fontWeight:"600" }}>Baseline: </span>
+                      {clearing.realityAnchor.baselineRange}/acre — {clearing.realityAnchor.baselineLabel}
+                    </div>
+                    {clearing.realityAnchor.exceedsBy && (
+                      <div style={{ fontSize:"11px", color:D.amber, fontFamily:"sans-serif" }}>
+                        {clearing.realityAnchor.exceedsBy} due to: {clearing.realityAnchor.exceedsReasons.join(", ")}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Confidence breakdown */}
                 <div style={{ marginTop:"14px", borderTop:`1px solid ${D.border}`, paddingTop:"12px" }}>
@@ -473,15 +525,16 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                   ].map((item, i) => (
                     <div key={i} style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", padding:"5px 0", borderBottom:`1px solid ${D.border}` }}>
                       <span style={{ fontSize:"11px", color:D.muted, fontFamily:"sans-serif" }}>{item.label}</span>
-                      <div style={{ textAlign:"right", marginLeft:"12px" }}>
-                        <span style={{ fontSize:"11px", fontWeight:"700", color: item.dim.level === "High" ? "#4ade80" : item.dim.level === "Medium" ? "#fbbf24" : "#f87171", fontFamily:"sans-serif" }}>
+                      <div style={{ textAlign:"right", marginLeft:"12px", maxWidth:"60%" }}>
+                        <span style={{ fontSize:"11px", fontWeight:"700", fontFamily:"sans-serif",
+                          color: item.dim.level === "High" ? "#4ade80" : item.dim.level === "Medium" ? "#fbbf24" : "#f87171" }}>
                           {item.dim.level}
                         </span>
-                        <div style={{ fontSize:"10px", color:D.dim, fontFamily:"sans-serif", maxWidth:"200px", textAlign:"right", marginTop:"2px" }}>{item.dim.note}</div>
+                        <div style={{ fontSize:"10px", color:D.dim, fontFamily:"sans-serif", marginTop:"2px", lineHeight:1.4 }}>{item.dim.note}</div>
                       </div>
                     </div>
                   ))}
-                  <div style={{ marginTop:"10px", padding:"8px 10px", background:D.bgCard, borderRadius:"5px", fontSize:"10px", color:D.dim, fontFamily:"sans-serif", fontStyle:"italic" }}>
+                  <div style={{ marginTop:"10px", padding:"8px 10px", background:D.bgCard, borderRadius:"5px", fontSize:"10px", color:D.dim, fontFamily:"sans-serif", fontStyle:"italic", lineHeight:1.5 }}>
                     {clearing.confidence.disclaimer}
                   </div>
                 </div>
@@ -489,41 +542,36 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             </>
           )}
 
-          {/* Non-linear flags */}
+          {/* Fix #3 — Diagnosis flags */}
           {clearing && clearing.nonLinearFlags.length > 0 && (
             <>
-              <RH label="⚡  Condition Interaction Warnings" D={D} />
+              <RH label="⚡  Condition Interaction Diagnosis" D={D} />
               <div style={{ marginBottom:"20px" }}>
                 {clearing.nonLinearFlags.map((f, i) => (
-                  <div key={i} style={{ background:D.amberBg, border:`1px solid ${D.amberBrd}`, borderRadius:"5px", padding:"10px 14px", fontSize:"11px", color:D.amber, marginBottom:"6px" }}>
-                    ⚠ {f}
+                  <div key={i} style={{ background:D.amberBg, border:`1px solid ${D.amberBrd}`, borderRadius:"5px", padding:"12px 14px", fontSize:"11px", color:D.amber, marginBottom:"8px", lineHeight:1.6 }}>
+                    ⚡ {f}
                   </div>
                 ))}
               </div>
             </>
           )}
 
-          {/* Risk factors — sorted high → medium → low */}
+          {/* Risk factors */}
           {clearing && clearing.riskFactors.length > 0 && (
             <>
               <RH label="🔴  Risk Factors" D={D} />
               <div style={{ marginBottom:"20px" }}>
-                {clearing.riskFactors.map((r, i) => {
-                  const bg  = r.severity === "high" ? D.redBg  : r.severity === "medium" ? D.amberBg : D.blueBg;
-                  const clr = r.severity === "high" ? D.red    : r.severity === "medium" ? D.amber   : D.blue;
-                  const brd = r.severity === "high" ? D.redBrd : r.severity === "medium" ? D.amberBrd : D.blueBrd;
-                  return (
-                    <div key={i} style={{ background:bg, border:`1px solid ${brd}`, borderRadius:"5px", padding:"10px 14px", marginBottom:"6px" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"4px" }}>
-                        <span style={{ fontSize:"9px", fontWeight:"700", textTransform:"uppercase", letterSpacing:"0.06em", color:clr, fontFamily:"sans-serif", border:`1px solid ${brd}`, padding:"1px 6px", borderRadius:"3px" }}>
-                          {r.severity}
-                        </span>
-                        <span style={{ fontSize:"12px", fontWeight:"600", color:clr, fontFamily:"sans-serif" }}>{r.label}</span>
-                      </div>
-                      <div style={{ fontSize:"11px", color:D.muted, lineHeight:1.5 }}>{r.consequence}</div>
+                {clearing.riskFactors.map((r, i) => (
+                  <div key={i} style={{ background:r.bgColor, border:`1px solid ${r.borderColor}`, borderRadius:"5px", padding:"10px 14px", marginBottom:"6px" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:"8px", marginBottom:"4px" }}>
+                      <span style={{ fontSize:"9px", fontWeight:"700", textTransform:"uppercase", letterSpacing:"0.06em", color:r.color, fontFamily:"sans-serif", border:`1px solid ${r.borderColor}`, padding:"1px 6px", borderRadius:"3px" }}>
+                        {r.severity}
+                      </span>
+                      <span style={{ fontSize:"12px", fontWeight:"600", color:r.color, fontFamily:"sans-serif" }}>{r.label}</span>
                     </div>
-                  );
-                })}
+                    <div style={{ fontSize:"11px", color:D.muted, lineHeight:1.5 }}>{r.consequence}</div>
+                  </div>
+                ))}
               </div>
             </>
           )}
