@@ -7,9 +7,9 @@
  * UI never calls engines directly — only calls this.
  */
 
-import { runClearingPro, ClearingProInput, ClearingProResult } from "./ClearingPro";
-import { runFencePro, FenceProInput, FenceProResult, FenceType } from "./FencePro";
-import { LandSelections } from "@/components/LandSelectors";
+import { runClearingPro, ClearingProInput, ClearingProResult } from "./ClearingPro.js";
+import { runFencePro, FenceProInput, FenceProResult, FenceType } from "./FencePro.js";
+import { LandSelections } from "@/components/LandSelectors.js";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
