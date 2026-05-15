@@ -18,7 +18,7 @@ import {
   FileText, Droplets, Building2, Trash2, AlertTriangle, Zap
 } from "lucide-react";
 import { format } from "date-fns";
-import { runLandProEngine } from "src/engines/LandProEngine.ts";
+import { runLandProEngine } from "@/engines/LandProEngine";
 import { buildReportView, ReportView } from "@/engines/buildReportView";
 
 interface JobReportProps {
