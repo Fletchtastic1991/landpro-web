@@ -28,6 +28,5 @@
     },
     "types": ["@types/geojson"]
   },
-  "include": ["src"],
-  "references": [{ "path": "./core/tsconfig.json" }]
+  "include": ["src"]
 }
