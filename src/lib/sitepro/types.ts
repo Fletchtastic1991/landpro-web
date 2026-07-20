@@ -103,21 +103,3 @@ export const OUTCOME_LABELS: Record<SiteProOutcome, { emoji: string; label: stri
   inconclusive: { emoji: '🟡', label: 'Inconclusive' },
   blocked: { emoji: '🔴', label: 'Blocked' },
 } as const;
-export interface SiteProResult {
-  outcome: 'suitable' | 'inconclusive' | 'blocked';
-  reasoning: string;
-  unknowns: string[];
-  known_facts: any[];
-  sources_referenced: any[];
-  confidence: number;
-
-  // 👇 NEW — decision outputs (initially optional)
-  clearing_effort?: 'Low' | 'Moderate' | 'High';
-  budget_uncertainty?: 'Low' | 'Moderate' | 'High';
-  risk_drivers?: string[];
-  cost_sensitivity?: {
-    level: 'Stable' | 'Directional' | 'Highly Sensitive';
-    unknown: string;
-  };
-  regional_context?: 'Easier than typical' | 'Typical' | 'More challenging than typical';
-}
