@@ -20,7 +20,7 @@ import { Separator } from '@/components/ui/separator';
 import { useParcelMemory } from '@/hooks/useParcelMemory';
 import { useSitePro } from '@/hooks/useSitePro';
 import type { MemoryRecord } from '@/lib/memory/types.ts';
-import type { SiteProResult } from '@/lib/sitepro/evaluator.ts';
+import type { SiteProResult } from '@/lib/sitepro/types';
 
 interface MemoryInspectorProps {
   parcelId: string | undefined;
