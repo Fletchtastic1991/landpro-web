@@ -26,7 +26,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "types": ["@types/geojson"]
+    "types": ["@types/geojson", "node"]
   },
   "include": ["src"]
 }

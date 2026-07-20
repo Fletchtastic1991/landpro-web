@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
 import landproLogo from "@/assets/landpro-logo.png";
 
+function safeNext(raw: string | null): string {
+  if (!raw) return "/dashboard";
+  // Only allow same-origin relative paths.
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/dashboard";
+  return raw;
+}
+
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,6 +24,8 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const nextPath = safeNext(searchParams.get("next"));
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +44,7 @@ export default function Auth() {
       });
     } else {
       toast({ title: "Welcome back!" });
-      navigate("/dashboard");
+      navigate(nextPath);
     }
     setIsLoading(false);
   };
@@ -49,6 +58,7 @@ export default function Auth() {
       password,
       options: {
         data: { full_name: fullName },
+        emailRedirectTo: window.location.origin + nextPath,
       },
     });
 
@@ -60,7 +70,7 @@ export default function Auth() {
       });
     } else {
       toast({ title: "Account created!", description: "You can now log in." });
-      navigate("/dashboard");
+      navigate(nextPath);
     }
     setIsLoading(false);
   };
