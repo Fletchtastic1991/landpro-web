@@ -44,7 +44,7 @@ export default function Auth() {
       });
     } else {
       toast({ title: "Welcome back!" });
-      navigate("/dashboard");
+      navigate(nextPath);
     }
     setIsLoading(false);
   };
@@ -58,6 +58,7 @@ export default function Auth() {
       password,
       options: {
         data: { full_name: fullName },
+        emailRedirectTo: window.location.origin + nextPath,
       },
     });
 
@@ -69,7 +70,7 @@ export default function Auth() {
       });
     } else {
       toast({ title: "Account created!", description: "You can now log in." });
-      navigate("/dashboard");
+      navigate(nextPath);
     }
     setIsLoading(false);
   };
