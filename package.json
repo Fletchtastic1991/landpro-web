@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "@lovable.dev/mcp-js": "^0.23.0",
     "@mapbox/mapbox-gl-draw": "^1.5.1",
     "@mapbox/mapbox-gl-geocoder": "^5.1.2",
     "@radix-ui/react-accordion": "^1.2.11",
