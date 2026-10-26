@@ -212,11 +212,29 @@ export default function MapDrawing({
       map.current.addControl(geocoder.current, "top-left");
 
       // When user selects an address → fly there + try parcel lookup
+      let lastResultAt = 0;
       geocoder.current.on("result", (e: any) => {
+        lastResultAt = Date.now();
         const [lng, lat] = e.result.center;
         map.current?.flyTo({ center: [lng, lat], zoom: 17, speed: 1.4 });
         // Try fetching parcel boundary for this location
         fetchParcelBoundary(lng, lat);
+      });
+
+      // Pressing Enter: the geocoder only picks a suggestion if its dropdown
+      // has already loaded. If no result was picked shortly after Enter
+      // (e.g. the user typed fast), geocode the typed text ourselves; the
+      // geocoder then selects the top match and fires "result" above → fly-to.
+      const gc = geocoder.current;
+      const searchInput = mapContainer.current.querySelector<HTMLInputElement>(".mapboxgl-ctrl-geocoder--input");
+      searchInput?.addEventListener("keydown", (ev: KeyboardEvent) => {
+        if (ev.key !== "Enter") return;
+        const pressedAt = Date.now();
+        window.setTimeout(() => {
+          const query = searchInput.value.trim();
+          if (geocoder.current !== gc) return; // map was closed
+          if (lastResultAt < pressedAt && query.length >= 2) gc.query(query);
+        }, 400);
       });
     }
 
