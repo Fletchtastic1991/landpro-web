@@ -17,8 +17,8 @@ const initials = {
   ],
 };
 
-export default function s() {
-  const [s] = useState(initials);
+export default function Jobs() {
+  const [jobs] = useState(initials);
 
   const statusColors = {
     scheduled: "bg-blue-500/10 text-blue-700 border-blue-500/20",
@@ -29,9 +29,9 @@ export default function s() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-3xl font-bold">s</h1>
+        <h1 className="text-3xl font-bold">Jobs</h1>
         <p className="text-muted-foreground mt-1">
-          Track and manage your landscaping s
+          Track and manage your landscaping jobs
         </p>
       </div>
 
@@ -42,12 +42,12 @@ export default function s() {
             <CardTitle className="flex items-center justify-between">
               <span>Scheduled</span>
               <Badge variant="outline" className={statusColors.scheduled}>
-                {s.scheduled.length}
+                {jobs.scheduled.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {s.scheduled.map((job) => (
+            {jobs.scheduled.map((job) => (
               <Card
                 key={job.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-blue-500"
@@ -74,12 +74,12 @@ export default function s() {
             <CardTitle className="flex items-center justify-between">
               <span>In Progress</span>
               <Badge variant="outline" className={statusColors.inProgress}>
-                {s.inProgress.length}
+                {jobs.inProgress.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {s.inProgress.map((job) => (
+            {jobs.inProgress.map((job) => (
               <Card
                 key={job.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-yellow-500"
@@ -106,12 +106,12 @@ export default function s() {
             <CardTitle className="flex items-center justify-between">
               <span>Completed</span>
               <Badge variant="outline" className={statusColors.completed}>
-                {s.completed.length}
+                {jobs.completed.length}
               </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {s.completed.map((job) => (
+            {jobs.completed.map((job) => (
               <Card
                 key={job.id}
                 className="p-4 hover:shadow-md transition-shadow cursor-move border-l-4 border-l-green-500"
