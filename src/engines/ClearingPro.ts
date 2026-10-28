@@ -7,6 +7,10 @@
  */
 
 import { DEFAULT_PRICING_CONFIG } from "@/lib/pricingConfig";
+import {
+  priceJob, sanitizeProfile, DEFAULT_PRICING_PROFILE,
+  PricingProfile, PriceQuote, WorkEstimate,
+} from "./pricing";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +77,12 @@ export interface ClearingProResult {
     perAcreNote: string;
   };
 
+  // Work estimate in calendar terms: hours ÷ productive hours per day
+  days: { min: number; max: number; hoursPerDay: number };
+
+  // Full price breakdown from the contractor's PricingProfile (line items etc.)
+  quote: PriceQuote;
+
   // Centralized cost drivers — shown above total cost
   costDrivers: CostDriver[];
 
@@ -99,9 +109,6 @@ export interface ClearingProResult {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const MACHINE_RATE = 150;
-const LABOR_RATE   = 50;
 
 const PROD_HOURS = {
   conservative: { light: [12, 20], medium: [28, 50], heavy: [60, 100] },
@@ -155,7 +162,11 @@ const BASELINE = {
 
 // ─── Engine ───────────────────────────────────────────────────────────────────
 
-export function runClearingPro(input: ClearingProInput): ClearingProResult {
+export function runClearingPro(
+  input: ClearingProInput,
+  pricing: PricingProfile = DEFAULT_PRICING_PROFILE,
+): ClearingProResult {
+  const profile = sanitizeProfile(pricing);
   if (input.acreage <= 0) {
     return blockedResult("Acreage must be greater than zero");
   }
@@ -182,22 +193,22 @@ export function runClearingPro(input: ClearingProInput): ClearingProResult {
       : input.vegetation === "medium" || input.terrain === "slight_slope"
       ? "Moderate" : "Standard";
 
-  const machineMin = Math.round(adjMin * MACHINE_RATE);
-  const machineMax = Math.round(adjMax * MACHINE_RATE);
-  const laborMin   = Math.round(adjMin * crewSize * LABOR_RATE);
-  const laborMax   = Math.round(adjMax * crewSize * LABOR_RATE);
+  // ── 1. Work estimate (what the job takes) ──
+  const addons = buildAddons(input);
+  const work: WorkEstimate = {
+    acreage:    input.acreage,
+    vegetation: input.vegetation,
+    hours:      { min: adjMin, max: adjMax },
+    crewSize,
+    addons,
+  };
 
-  const addons   = buildAddons(input);
-  const addonMin = addons.reduce((s, a) => s + a.low,  0);
-  const addonMax = addons.reduce((s, a) => s + a.high, 0);
+  // ── 2. Price (what the contractor charges for it) ──
+  const quote = priceJob(work, profile);
+  const { min: totalMin, max: totalMax } = quote.total;
+  const { min: perAcreMin, max: perAcreMax } = quote.perAcre;
 
-  const totalMin = Math.round((machineMin + laborMin + addonMin) / 100) * 100;
-  const totalMax = Math.round((machineMax + laborMax + addonMax) / 100) * 100;
-
-  const perAcreMin = Math.round(totalMin / input.acreage / 100) * 100;
-  const perAcreMax = Math.round(totalMax / input.acreage / 100) * 100;
-
-  const costDrivers    = buildCostDrivers(input, stackedMultipliers);
+  const costDrivers    = buildCostDrivers(input, stackedMultipliers, profile, quote);
   const realityAnchor  = buildRealityAnchor(input, perAcreMin, perAcreMax);
   const nonLinearFlags = buildNonLinearFlags(input);
   const riskFactors    = buildRiskFactors(input);
@@ -217,13 +228,15 @@ export function runClearingPro(input: ClearingProInput): ClearingProResult {
       justification: crewDef.justification,
     },
     cost: {
-      machine:     { min: machineMin, max: machineMax },
-      labor:       { min: laborMin,   max: laborMax   },
-      addons,
+      machine:     quote.machine,
+      labor:       quote.labor,
+      addons:      quote.addonsIncluded ? addons : [],
       total:       { min: totalMin,   max: totalMax   },
       perAcre:     { min: perAcreMin, max: perAcreMax },
-      perAcreNote: buildPerAcreNote(input),
+      perAcreNote: buildPerAcreNote(input, profile),
     },
+    days: { ...quote.days, hoursPerDay: profile.productiveHoursPerDay },
+    quote,
     costDrivers,
     realityAnchor,
     equipment:      buildEquipment(input),
@@ -235,8 +248,34 @@ export function runClearingPro(input: ClearingProInput): ClearingProResult {
 
 // ─── Cost drivers ─────────────────────────────────────────────────────────────
 
-function buildCostDrivers(input: ClearingProInput, stackedMultipliers: number): CostDriver[] {
+function buildCostDrivers(
+  input: ClearingProInput,
+  stackedMultipliers: number,
+  profile: PricingProfile,
+  quote: PriceQuote,
+): CostDriver[] {
   const drivers: CostDriver[] = [];
+  const $ = (n: number) => `$${n.toLocaleString()}`;
+
+  // How the contractor charges — always first so the client sees the basis
+  if (profile.mode === "hourly") {
+    drivers.push({ label: "Pricing: hourly", impact: `Machine ${$(profile.machineRatePerHr)}/hr + ${$(profile.laborRatePerHr)}/hr per crew member, times the estimated hours` });
+  } else if (profile.mode === "per_acre") {
+    drivers.push({ label: "Pricing: per acre", impact: `${$(profile.perAcreRate[input.vegetation])}/acre for ${input.vegetation} vegetation — terrain/access difficulty should already be reflected in this rate` });
+  } else if (profile.mode === "daily") {
+    drivers.push({ label: "Pricing: daily rate", impact: `${$(profile.dailyRate)} per work day, billed in whole days at ${profile.productiveHoursPerDay} productive hrs/day` });
+  } else {
+    drivers.push({ label: "Pricing: lump sum", impact: `Fixed bid of ${$(profile.lumpSum)} for the clearing work — site add-ons are treated as included` });
+  }
+  if (profile.mobilizationFee > 0) {
+    drivers.push({ label: "Mobilization fee", impact: `${$(profile.mobilizationFee)} flat fee to haul equipment in and out is included` });
+  }
+  if (profile.markupPct > 0) {
+    drivers.push({ label: "Markup", impact: `${profile.markupPct}% added for overhead and profit` });
+  }
+  if (quote.minimumApplied.low || quote.minimumApplied.high) {
+    drivers.push({ label: "Minimum job charge", impact: `Total raised to your ${$(profile.minimumCharge)} minimum — the job is too small to cover your fixed costs otherwise` });
+  }
 
   if (input.vegetation === "heavy") {
     drivers.push({ label: "Heavy vegetation", impact: "Requires D6/D7 dozer + forestry mulcher — heaviest equipment class, highest hourly rate" });
@@ -245,7 +284,16 @@ function buildCostDrivers(input: ClearingProInput, stackedMultipliers: number): 
   }
 
   if (input.acreage < 2) {
-    drivers.push({ label: `Small parcel (${input.acreage} ac)`, impact: "Small jobs often carry fixed costs (hauling equipment in, setup, teardown). This estimate does NOT include a mobilization or minimum-job fee, so a real quote may be higher per acre" });
+    const feesIncluded = [
+      profile.mobilizationFee > 0 ? "a mobilization fee" : null,
+      profile.minimumCharge   > 0 ? "a minimum job charge" : null,
+    ].filter(Boolean).join(" and ");
+    drivers.push({
+      label:  `Small parcel (${input.acreage} ac)`,
+      impact: feesIncluded
+        ? `Small jobs carry fixed costs (hauling equipment in, setup, teardown) — covered here by ${feesIncluded}, which raises the per-acre price`
+        : "Small jobs carry fixed costs (hauling equipment in, setup, teardown). No mobilization fee or minimum job charge is set in your rates, so this quote may be too low — consider setting them",
+    });
   }
 
   if (input.terrain === "steep") {
@@ -261,11 +309,15 @@ function buildCostDrivers(input: ClearingProInput, stackedMultipliers: number): 
   }
 
   if (input.accessibility === "difficult") {
-    drivers.push({ label: "Difficult access", impact: "Mobilization add-on applied — remote haul road or specialized transport likely needed" });
+    drivers.push({ label: "Difficult access", impact: quote.addonsIncluded
+      ? `Difficult-access add-on applied (on top of any standard mobilization fee) — remote haul road or specialized transport likely needed`
+      : "Remote haul road or specialized transport likely needed — make sure your lump sum covers it" });
   }
 
   if (input.debris === "heavy") {
-    drivers.push({ label: "Heavy debris", impact: "Haul-off add-on applied — licensed disposal required for heavy material" });
+    drivers.push({ label: "Heavy debris", impact: quote.addonsIncluded
+      ? "Haul-off add-on applied — licensed disposal required for heavy material"
+      : "Licensed disposal required for heavy material — make sure your lump sum covers it" });
   }
 
   if (stackedMultipliers >= 2) {
@@ -423,10 +475,15 @@ function buildEquipment(input: ClearingProInput): string[] {
   return eq;
 }
 
-function buildPerAcreNote(input: ClearingProInput): string {
-  if (input.acreage < 2) return `Small parcel (${input.acreage} ac) — no mobilization or minimum-job fee is included, so a real quote may run higher per acre.`;
-  if (input.acreage < 5) return "Per-acre rate shown — no mobilization or minimum-job fee is included in this estimate.";
-  return "Per-acre rate shown for comparison with contractor quotes.";
+function buildPerAcreNote(input: ClearingProInput, profile: PricingProfile): string {
+  const fees = [
+    profile.mobilizationFee > 0 ? "mobilization fee" : null,
+    profile.minimumCharge   > 0 ? "minimum job charge" : null,
+  ].filter(Boolean) as string[];
+  const feeText = fees.length ? `includes your ${fees.join(" and ")}` : "no mobilization fee or minimum job charge is set";
+  if (input.acreage < 2) return `Small parcel (${input.acreage} ac) — ${feeText}${fees.length ? ", so the per-acre price runs higher." : ", so a real quote may run higher per acre."}`;
+  if (input.acreage < 5) return `Per-acre price shown — ${feeText}.`;
+  return "Per-acre price shown for comparison with contractor quotes.";
 }
 
 function buildConfidence(
@@ -462,7 +519,7 @@ function buildConfidence(
       ? `${stackedMultipliers} condition multipliers stacked — compounding effects exceed what linear math captures`
       : highRiskCount >= 2
       ? "Multiple high-risk conditions — cost model may underestimate significantly"
-      : "Hours × rates model — reasonable for budgeting, not for final bid",
+      : "Hours estimate × your rates — reasonable for budgeting, not for final bid",
   };
 
   const worst = [geometry.level, siteConditions.level, costModel.level];
@@ -486,6 +543,12 @@ function blockedResult(reason: string): ClearingProResult {
     hours:         { base: { min: 0, max: 0 }, adjusted: { min: 0, max: 0 }, factors: { terrain: 1, access: 1, water: 1 } },
     crew:          { size: 0, difficulty: "Standard", assumption: "", justification: "" },
     cost:          { machine: { min: 0, max: 0 }, labor: { min: 0, max: 0 }, addons: [], total: { min: 0, max: 0 }, perAcre: { min: 0, max: 0 }, perAcreNote: "" },
+    days:          { min: 0, max: 0, hoursPerDay: DEFAULT_PRICING_PROFILE.productiveHoursPerDay },
+    quote: {
+      mode: DEFAULT_PRICING_PROFILE.mode, lineItems: [], machine: { min: 0, max: 0 }, labor: { min: 0, max: 0 },
+      total: { min: 0, max: 0 }, perAcre: { min: 0, max: 0 }, days: { min: 0, max: 0 },
+      minimumApplied: { low: false, high: false }, addonsIncluded: true, profile: DEFAULT_PRICING_PROFILE,
+    },
     costDrivers:   [],
     realityAnchor: { baselineRange: "", baselineLabel: "", exceedsBy: null, exceedsReasons: [] },
     equipment:     [], riskFactors: [], nonLinearFlags: [],

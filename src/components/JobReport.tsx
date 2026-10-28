@@ -20,6 +20,7 @@ import {
 import { format } from "date-fns";
 import { runLandProEngine } from "@/engines/LandProEngine";
 import { buildReportView, ReportView } from "@/engines/buildReportView";
+import { PricingProfile, DEFAULT_PRICING_PROFILE } from "@/engines/pricing";
 
 interface JobReportProps {
   propertyData: {
@@ -28,6 +29,7 @@ interface JobReportProps {
     boundary?:    GeoJSON.Polygon | null;
   };
   selections: LandSelections;
+  pricing?:   PricingProfile;
   className?: string;
 }
 
@@ -85,7 +87,7 @@ function genReportNum() {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, className }) => {
+const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, pricing = DEFAULT_PRICING_PROFILE, className }) => {
   const [generated, setGenerated] = useState(false);
   const [reportNum] = useState(genReportNum);
   const [lockedAt, setLockedAt] = useState(() => new Date());
@@ -99,9 +101,10 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
       acreage:    acres,
       boundary:   propertyData.boundary,
       selections,
+      pricing,
     });
     return buildReportView(engine, selections);
-  }, [acres, propertyData.boundary, selections]);
+  }, [acres, propertyData.boundary, selections, pricing]);
 
   const { fence, clearing } = view;
 
@@ -228,6 +231,34 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                 </div>
               </div>
               <Badge className={cn("border text-xs", confBadge)}>{clearing.confidence.level} Confidence</Badge>
+            </div>
+          )}
+
+          {/* Quote line items + work days */}
+          {clearing && (
+            <div className="rounded-lg border p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Quote breakdown</p>
+                <span className="text-xs text-muted-foreground">Pricing: {clearing.cost.pricingMode}</span>
+              </div>
+              {clearing.cost.lineItems.map((li, i) => (
+                <div key={i} className="flex items-start justify-between gap-3 text-sm border-b border-border/50 pb-1 last:border-0">
+                  <div>
+                    <p className="font-medium text-foreground">{li.label}</p>
+                    <p className="text-xs text-muted-foreground">{li.detail}</p>
+                  </div>
+                  <span className="font-semibold whitespace-nowrap">{li.range}</span>
+                </div>
+              ))}
+              <p className="text-xs text-muted-foreground/80 italic">{clearing.cost.roundingNote}</p>
+              <div className="flex items-center gap-2 pt-1 text-sm">
+                <Calendar className="h-4 w-4 text-primary" />
+                <span className="font-semibold">{clearing.days.range}</span>
+                <span className="text-xs text-muted-foreground">— {clearing.days.note}</span>
+              </div>
+              {clearing.cost.minimumHint && (
+                <p className="text-xs text-amber-500">{clearing.cost.minimumHint}</p>
+              )}
             </div>
           )}
 
@@ -466,19 +497,15 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                 <Row label={`Base: ${acres} acres (${VEG_L[selections.vegetation].toLowerCase()}, ${clearing.productionRate.toLowerCase()})`} value={clearing.hours.base} D={D} bold />
                 {clearing.hours.factors.map((f, i) => <Row key={i} label={f} value="" D={D} dim />)}
                 <Row label="Adjusted total hours" value={clearing.hours.adjusted} D={D} />
+                <Row label={`Estimated work days (${clearing.days.hoursPerDay} productive hrs/day)`} value={clearing.days.range} D={D} />
 
                 <div style={{ marginTop:"12px", borderTop:`1px solid ${D.border}`, paddingTop:"10px" }}>
-                  <Sect label="Labor Cost" D={D} />
-                  <Row label={`Machine: ${clearing.hours.adjusted} × $150/hr`}                                value={clearing.cost.machineRange} D={D} />
-                  <Row label={`Crew: ${clearing.hours.adjusted} × ${clearing.crew.size} ops × $50/hr`}       value={clearing.cost.laborRange}   D={D} />
+                  <Sect label={`Quote Line Items — ${clearing.cost.pricingMode}`} D={D} />
+                  {clearing.cost.lineItems.map((li, i) => (
+                    <Row key={i} label={`${li.label}: ${li.detail}`} value={li.range} D={D} dim={li.kind === "addon"} />
+                  ))}
+                  <div style={{ fontSize:"10px", color:D.dim, fontFamily:"sans-serif", marginTop:"4px" }}>{clearing.cost.roundingNote}</div>
                 </div>
-
-                {clearing.cost.addons.length > 0 && (
-                  <div style={{ marginTop:"12px", borderTop:`1px solid ${D.border}`, paddingTop:"10px" }}>
-                    <Sect label="Fixed Addons" D={D} />
-                    {clearing.cost.addons.map((a, i) => <Row key={i} label={a.label} value={a.range} D={D} dim />)}
-                  </div>
-                )}
 
                 {/* Fix #1 — Cost drivers above total */}
                 {clearing.costDrivers.length > 0 && (

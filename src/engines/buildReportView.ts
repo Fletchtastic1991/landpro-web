@@ -8,6 +8,7 @@
 
 import { LandProEngineOutput } from "./LandProEngine";
 import { LandSelections } from "@/components/LandSelectors";
+import { PRICING_MODE_LABELS } from "./pricing";
 
 // ─── Display types ────────────────────────────────────────────────────────────
 
@@ -104,6 +105,16 @@ export interface ReportViewClearing {
     totalRange:   string;
     perAcreRange: string;
     perAcreNote:  string;
+    pricingMode:  string;                                   // e.g. "Hourly (machine + labor)"
+    lineItems:    { label: string; detail: string; range: string; kind: string }[];
+    roundingNote: string;                                   // totals are rounded to nearest $100
+    minimumHint:  string | null;                            // nudge to set a minimum job charge
+  };
+
+  days: {
+    range:       string;   // "1.6–3.1 work days"
+    hoursPerDay: number;
+    note:        string;
   };
 
   // Fix #1 — centralized cost drivers shown above total
@@ -269,6 +280,23 @@ export function buildReportView(
         totalRange:   fmtRange$(c.cost.total.min,   c.cost.total.max),
         perAcreRange: fmtRange$(c.cost.perAcre?.min ?? 0, c.cost.perAcre?.max ?? 0),
         perAcreNote:  c.cost.perAcreNote ?? "",
+        pricingMode:  PRICING_MODE_LABELS[c.quote.mode] ?? c.quote.mode,
+        lineItems:    c.quote.lineItems.map(li => ({
+          label:  li.label,
+          detail: li.detail,
+          kind:   li.kind,
+          range:  li.low === li.high ? fmt$(li.low) : fmtRange$(li.low, li.high),
+        })),
+        roundingNote: "Line items are exact; the total is rounded to the nearest $100.",
+        minimumHint:  c.quote.profile.minimumCharge > 0 || c.cost.total.min >= 1000
+          ? null
+          : "Tip: set a minimum job charge (and/or mobilization fee) in \"Your rates\" so small jobs never quote below your cost to show up.",
+      },
+
+      days: {
+        range:       `${c.days.min}–${c.days.max} work days`,
+        hoursPerDay: c.days.hoursPerDay,
+        note:        `Estimated hours ÷ ${c.days.hoursPerDay} productive hrs/day (one machine). Weather, permits and travel not included.`,
       },
 
       // Fix #1 — cost drivers

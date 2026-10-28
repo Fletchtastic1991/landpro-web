@@ -12,6 +12,8 @@ import MapDrawing from "@/components/MapDrawing";
 import LandSelectors, { LandSelections, DEFAULT_LAND_SELECTIONS } from "@/components/LandSelectors";
 import JobSummary from "@/components/JobSummary";
 import JobReport from "@/components/JobReport";
+import PricingProfilePanel from "@/components/PricingProfilePanel";
+import { usePricingProfile } from "@/hooks/usePricingProfile";
 import { LandIntent, INTENT_OPTIONS } from "@/components/IntentSelector";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +37,7 @@ export default function MapExplorer() {
   const [debugParcelId, setDebugParcelId] = useState<string | undefined>(undefined);
   const [showDevTools, setShowDevTools] = useState(false);
   const [landSelections, setLandSelections] = useState<LandSelections>(DEFAULT_LAND_SELECTIONS);
+  const pricing = usePricingProfile();
 
   const [propertyData, setPropertyData] = useState<{
     acreage: number | null;
@@ -167,6 +170,12 @@ export default function MapExplorer() {
           </div>
           <Card className="p-6">
             <LandSelectors selections={landSelections} onSelectionChange={handleLandSelectionChange} />
+            <PricingProfilePanel
+              className="mt-8"
+              profile={pricing.profile}
+              onChange={pricing.update}
+              onReset={pricing.reset}
+            />
             <div className="mt-8">
               <JobSummary selections={landSelections} />
             </div>
@@ -182,7 +191,7 @@ export default function MapExplorer() {
               <p className="text-sm text-muted-foreground">Finalized snapshot of your property details and selected land conditions.</p>
             </div>
           </div>
-          <JobReport propertyData={propertyData} selections={landSelections} />
+          <JobReport propertyData={propertyData} selections={landSelections} pricing={pricing.profile} />
         </div>
       </section>
 

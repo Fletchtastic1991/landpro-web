@@ -10,6 +10,7 @@
 import { runClearingPro, ClearingProInput, ClearingProResult } from "./ClearingPro.js";
 import { runFencePro, FenceProInput, FenceProResult, FenceType } from "./FencePro.js";
 import { LandSelections } from "@/components/LandSelectors.js";
+import { PricingProfile, DEFAULT_PRICING_PROFILE } from "./pricing.js";
 
 // ─── Input ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ export interface LandProEngineInput {
   acreage:    number;
   boundary?:  GeoJSON.Polygon | null;
   selections: LandSelections;
+  pricing?:   PricingProfile;   // contractor's rates; defaults reproduce the original hourly math
 }
 
 // ─── Output (raw — no formatting) ────────────────────────────────────────────
@@ -29,7 +31,7 @@ export interface LandProEngineOutput {
 // ─── Engine ───────────────────────────────────────────────────────────────────
 
 export function runLandProEngine(input: LandProEngineInput): LandProEngineOutput {
-  const { acreage, boundary, selections } = input;
+  const { acreage, boundary, selections, pricing = DEFAULT_PRICING_PROFILE } = input;
 
   // Build ClearingPro input from selections
   const clearingInput: ClearingProInput = {
@@ -60,7 +62,7 @@ export function runLandProEngine(input: LandProEngineInput): LandProEngineOutput
   };
 
   return {
-    clearing: runClearingPro(clearingInput),
+    clearing: runClearingPro(clearingInput, pricing),
     fence:    runFencePro(fenceInput),
   };
 }
