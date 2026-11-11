@@ -70,6 +70,15 @@ const SEVERITY_BADGE: Record<string, string> = {
   low:    "bg-blue-500/20 text-blue-400 border-blue-500/30",
 };
 
+// Formats a date in the viewer's own (browser) time zone and appends the zone
+// label, e.g. "Oct 26, 2026 at 4:30 PM EDT", so the time is never ambiguous.
+function fmtLocalWithZone(d: Date, pattern: string): string {
+  const zone = new Intl.DateTimeFormat(undefined, { timeZoneName: "short" })
+    .formatToParts(d)
+    .find(p => p.type === "timeZoneName")?.value;
+  return zone ? `${format(d, pattern)} ${zone}` : format(d, pattern);
+}
+
 function genReportNum() {
   return `LP-${format(new Date(), "yyyyMMdd")}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 }
@@ -79,7 +88,7 @@ function genReportNum() {
 const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, className }) => {
   const [generated, setGenerated] = useState(false);
   const [reportNum] = useState(genReportNum);
-  const [lockedAt]  = useState(() => new Date());
+  const [lockedAt, setLockedAt] = useState(() => new Date());
 
   const acres   = propertyData.acreage ?? 0;
   const hasAcre = acres > 0;
@@ -115,7 +124,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
               <FileText className="h-5 w-5 text-primary" /> Job Summary Report
             </CardTitle>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Calendar className="h-3 w-3" />{new Date().toLocaleString()}
+              <Calendar className="h-3 w-3" />{fmtLocalWithZone(new Date(), "MMM d, yyyy 'at' h:mm a")}
             </div>
           </div>
         </CardHeader>
@@ -227,7 +236,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
             <div className="p-3 rounded-lg border bg-muted/10 space-y-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reality Anchor</p>
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">Baseline: </span>
+                <span className="font-medium text-foreground">Light/open-land baseline: </span>
                 {clearing.realityAnchor.baselineRange}/acre — {clearing.realityAnchor.baselineLabel}
               </p>
               {clearing.realityAnchor.exceedsBy && (
@@ -298,7 +307,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                   </div>
                 ))}
               </div>
-              <Button size="lg" className="w-full text-base font-semibold gap-2" onClick={() => setGenerated(true)}>
+              <Button size="lg" className="w-full text-base font-semibold gap-2" onClick={() => { setLockedAt(new Date()); setGenerated(true); }}>
                 <Lock className="h-4 w-4" /> Generate Property Analysis Report
               </Button>
               <p className="text-xs text-center text-muted-foreground">
@@ -322,7 +331,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 gap-1 text-xs">
-            <Lock className="h-3 w-3" /> Locked {format(lockedAt, "MMM d, yyyy 'at' h:mm a")}
+            <Lock className="h-3 w-3" /> Locked {fmtLocalWithZone(lockedAt, "MMM d, yyyy 'at' h:mm a")}
           </Badge>
           <span className="text-sm text-muted-foreground font-mono">{reportNum}</span>
         </div>
@@ -360,7 +369,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
               <div style={{ textAlign:"right", fontFamily:"sans-serif" }}>
                 <div style={{ fontSize:"10px", color:D.dim, letterSpacing:"0.08em", textTransform:"uppercase" }}>Report Number</div>
                 <div style={{ fontSize:"16px", fontWeight:"bold", color:D.primary, fontFamily:"monospace" }}>{reportNum}</div>
-                <div style={{ fontSize:"10px", color:D.dim, marginTop:"2px" }}>Generated {format(lockedAt, "MMMM d, yyyy 'at' h:mm a")}</div>
+                <div style={{ fontSize:"10px", color:D.dim, marginTop:"2px" }}>Generated {fmtLocalWithZone(lockedAt, "MMMM d, yyyy 'at' h:mm a")}</div>
               </div>
             </div>
             <div style={{ marginTop:"20px" }}>
@@ -504,7 +513,7 @@ const JobReport: React.FC<JobReportProps> = ({ propertyData, selections, classNa
                       Reality Anchor
                     </div>
                     <div style={{ fontSize:"11px", color:D.muted, fontFamily:"sans-serif", marginBottom:"4px" }}>
-                      <span style={{ color:D.text, fontWeight:"600" }}>Baseline: </span>
+                      <span style={{ color:D.text, fontWeight:"600" }}>Light/open-land baseline: </span>
                       {clearing.realityAnchor.baselineRange}/acre — {clearing.realityAnchor.baselineLabel}
                     </div>
                     {clearing.realityAnchor.exceedsBy && (

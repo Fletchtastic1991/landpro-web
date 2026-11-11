@@ -78,7 +78,7 @@ export interface ClearingProResult {
 
   // Reality anchor — grounds the estimate against a baseline
   realityAnchor: {
-    baselineRange:  string;   // e.g. "$2,000–$6,000/acre"
+    baselineRange:  string;   // e.g. "$2,000–$6,000" (UI appends "/acre")
     baselineLabel:  string;   // "Typical open, dry land clearing"
     exceedsBy:      string | null;  // "This site exceeds baseline due to..."
     exceedsReasons: string[];
@@ -245,7 +245,7 @@ function buildCostDrivers(input: ClearingProInput, stackedMultipliers: number): 
   }
 
   if (input.acreage < 2) {
-    drivers.push({ label: `Small parcel (${input.acreage} ac)`, impact: "Mobilization, setup, and teardown costs don't scale down — fixed costs dominate small jobs" });
+    drivers.push({ label: `Small parcel (${input.acreage} ac)`, impact: "Small jobs often carry fixed costs (hauling equipment in, setup, teardown). This estimate does NOT include a mobilization or minimum-job fee, so a real quote may be higher per acre" });
   }
 
   if (input.terrain === "steep") {
@@ -284,19 +284,24 @@ function buildRealityAnchor(
 ): ClearingProResult["realityAnchor"] {
   const exceedsReasons: string[] = [];
   const isAboveBaseline = perAcreMin > BASELINE.perAcreMax;
+  // Only one baseline exists (light vegetation, flat, easy access, no water/debris/structures).
+  const matchesBaseline =
+    input.vegetation === "light" && input.terrain === "flat" && input.accessibility === "easy" &&
+    input.water === "none" && input.debris === "none" && input.structures === "none";
 
   if (isAboveBaseline) {
     if (input.vegetation === "heavy")             exceedsReasons.push("heavy vegetation (vs. open land)");
     if (input.terrain !== "flat")                 exceedsReasons.push("sloped terrain");
     if (input.water !== "none")                   exceedsReasons.push("water presence");
     if (input.accessibility !== "easy")           exceedsReasons.push("access difficulty");
-    if (input.acreage < 2)                        exceedsReasons.push("small parcel size");
     if (input.debris !== "none")                  exceedsReasons.push("debris disposal");
   }
 
   return {
-    baselineRange:  `$${BASELINE.perAcreMin.toLocaleString()}–$${BASELINE.perAcreMax.toLocaleString()}/acre`,
-    baselineLabel:  BASELINE.label,
+    baselineRange:  `$${BASELINE.perAcreMin.toLocaleString()}–$${BASELINE.perAcreMax.toLocaleString()}`,
+    baselineLabel:  matchesBaseline
+      ? `${BASELINE.label} — matches your selected conditions`
+      : `${BASELINE.label} — NOT adjusted for your selected conditions (no baseline data exists yet for heavier conditions)`,
     exceedsBy:      isAboveBaseline
       ? `This site runs $${perAcreMin.toLocaleString()}–$${perAcreMax.toLocaleString()}/acre`
       : null,
@@ -419,8 +424,8 @@ function buildEquipment(input: ClearingProInput): string[] {
 }
 
 function buildPerAcreNote(input: ClearingProInput): string {
-  if (input.acreage < 2) return `Small parcel (${input.acreage} ac) — mobilization and setup costs don't scale down, raising per-acre rate.`;
-  if (input.acreage < 5) return "Per-acre rate shown — fixed costs spread across fewer acres on smaller jobs.";
+  if (input.acreage < 2) return `Small parcel (${input.acreage} ac) — no mobilization or minimum-job fee is included, so a real quote may run higher per acre.`;
+  if (input.acreage < 5) return "Per-acre rate shown — no mobilization or minimum-job fee is included in this estimate.";
   return "Per-acre rate shown for comparison with contractor quotes.";
 }
 
